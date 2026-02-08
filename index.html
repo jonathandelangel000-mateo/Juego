@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Plataformas Final - Combate</title>
+    <title>Plataformas V6 - Optimizado</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
     <style>
-        body { margin: 0; background-color: #111; overflow: hidden; touch-action: none; }
-        canvas { display: block; margin: 0 auto; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        body { margin: 0; background-color: #000; overflow: hidden; touch-action: none; }
+        canvas { display: block; margin: 0 auto; }
     </style>
 </head>
 <body>
@@ -17,14 +17,12 @@
         type: Phaser.AUTO,
         width: 800,
         height: 600,
-        backgroundColor: '#000',
+        backgroundColor: '#1a1a2e', // Color de fondo por si falla el cielo
         scale: {
-            mode: Phaser.Scale.FIT, // MANTENEMOS ESTO QUE ES LO QUE FUNCIONA
+            mode: Phaser.Scale.FIT,
             autoCenter: Phaser.Scale.CENTER_BOTH
         },
-        input: {
-            activePointers: 3, 
-        },
+        input: { activePointers: 3 }, // Multitouch activado
         physics: {
             default: 'arcade',
             arcade: {
@@ -35,169 +33,167 @@
         scene: { preload: preload, create: create, update: update }
     };
 
-    // VARIABLES GLOBALES
+    // VARIABLES
     let player, platforms, door;
-    let cursors; // Teclado PC
-    let ghosts, rocks, spikes; // Grupos
-    let uiContainer; // Para que la UI no se mueva con la cámara
-
+    let cursors, keyZ; // Teclas
+    let ghosts, rocks, spikes;
+    let uiContainer;
+    
     // ESTADO
     let lives = 3;
     let ammo = 10;
     let lastFired = 0;
     let isGameOver = false;
 
-    // TEXTOS
-    let txtLives, txtAmmo;
-
-    // CONTROLES
+    // UI
+    let txtLives, txtAmmo, txtDebug;
+    
+    // CONTROLES TÁCTILES
     let moveLeft = false, moveRight = false, jump = false, shoot = false;
     let facingRight = true; 
 
     const game = new Phaser.Game(config);
 
     function preload() {
-        this.load.image('sky', 'https://labs.phaser.io/assets/skies/space3.png');
-        this.load.image('ground', 'https://labs.phaser.io/assets/sprites/platform.png');
-        this.load.spritesheet('dude', 'https://labs.phaser.io/assets/sprites/dude.png', { frameWidth: 32, frameHeight: 48 });
+        // NO CARGAMOS IMÁGENES EXTERNAS para evitar errores de conexión.
+        // Todo se generará matemáticamente en 'create'.
     }
 
     function create() {
-        // --- 1. GENERAR TEXTURAS (Para no cargar imágenes externas) ---
-        let g = this.make.graphics({x:0, y:0, add: false});
-        
-        // Fantasma
-        g.fillStyle(0xffffff, 0.9); g.fillCircle(20, 20, 20); g.generateTexture('ghostTex', 40, 40);
-        // Roca
-        g.clear(); g.fillStyle(0x888888, 1); g.fillCircle(10, 10, 10); g.generateTexture('rockTex', 20, 20);
-        // Pincho
-        g.clear(); g.fillStyle(0xff0000, 1); g.beginPath(); g.moveTo(0, 40); g.lineTo(20, 0); g.lineTo(40, 40); g.closePath(); g.fillPath(); g.generateTexture('spikeTex', 40, 40);
+        try {
+            // --- 1. GENERADOR DE GRÁFICOS (Textures) ---
+            let g = this.make.graphics({x:0, y:0, add: false});
 
+            // Cielo (Degradado simple)
+            g.fillGradientStyle(0x0f0c29, 0x0f0c29, 0x302b63, 0x24243e, 1);
+            g.fillRect(0, 0, 32, 32);
+            g.generateTexture('skyTex', 32, 32);
 
-        // --- 2. CONFIGURACIÓN DEL MUNDO ---
-        // Hacemos el mundo más largo (2000px) aunque la pantalla sea de 800px
-        this.physics.world.setBounds(0, 0, 2000, 600);
-        
-        // Fondo (se repite)
-        this.add.tileSprite(0, 0, 2000, 600, 'sky').setOrigin(0, 0).setScrollFactor(0.5);
+            // Suelo (Bloque verde neón)
+            g.clear();
+            g.fillStyle(0x00ff00, 1); g.fillRect(0, 0, 32, 32);
+            g.fillStyle(0x004400, 1); g.fillRect(2, 2, 28, 28); // Borde
+            g.generateTexture('groundTex', 32, 32);
 
-        // --- 3. PLATAFORMAS Y NIVEL ---
-        platforms = this.physics.add.staticGroup();
-        spikes = this.physics.add.staticGroup();
+            // Personaje (Cuadrado Azul)
+            g.clear();
+            g.fillStyle(0x00ccff, 1); g.fillRect(0, 0, 30, 45);
+            g.generateTexture('dudeTex', 30, 45);
 
-        // Suelo Base (Largo)
-        platforms.create(1000, 532, 'ground').setScale(10, 2).refreshBody(); 
-        
-        createLevel();
+            // Fantasma (Círculo Blanco)
+            g.clear(); g.fillStyle(0xffffff, 0.9); g.fillCircle(15, 15, 15);
+            g.generateTexture('ghostTex', 30, 30);
 
-        // --- 4. JUGADOR ---
-        player = this.physics.add.sprite(100, 400, 'dude');
-        player.setBounce(0.1);
-        player.setCollideWorldBounds(true);
+            // Roca (Gris)
+            g.clear(); g.fillStyle(0x888888, 1); g.fillCircle(8, 8, 8);
+            g.generateTexture('rockTex', 16, 16);
 
-        this.anims.create({ key: 'left', frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3 }), frameRate: 10, repeat: -1 });
-        this.anims.create({ key: 'turn', frames: [ { key: 'dude', frame: 4 } ], frameRate: 20 });
-        this.anims.create({ key: 'right', frames: this.anims.generateFrameNumbers('dude', { start: 5, end: 8 }), frameRate: 10, repeat: -1 });
+            // Pincho (Rojo)
+            g.clear(); g.fillStyle(0xff0000, 1);
+            g.beginPath(); g.moveTo(0, 32); g.lineTo(16, 0); g.lineTo(32, 32); g.closePath(); g.fillPath();
+            g.generateTexture('spikeTex', 32, 32);
 
-        // --- 5. GRUPOS DE ENEMIGOS ---
-        ghosts = this.physics.add.group();
-        rocks = this.physics.add.group({ defaultKey: 'rockTex', maxSize: 20 });
+            // --- 2. MUNDO ---
+            this.physics.world.setBounds(0, 0, 2000, 600);
+            
+            // Fondo infinito
+            this.add.tileSprite(0, 0, 2000, 600, 'skyTex').setOrigin(0, 0).setScrollFactor(0.5).setScale(4);
 
-        // Spawn de Fantasmas
-        spawnGhost(600, 300);
-        spawnGhost(1200, 200);
-        spawnGhost(1700, 400);
+            // --- 3. NIVEL ---
+            platforms = this.physics.add.staticGroup();
+            spikes = this.physics.add.staticGroup();
 
-        // --- 6. COLISIONES ---
-        this.physics.add.collider(player, platforms);
-        this.physics.add.collider(ghosts, platforms);
-        this.physics.add.collider(rocks, platforms, (r) => r.destroy()); // Roca choca pared
+            // Suelo base
+            platforms.create(1000, 550, 'groundTex').setScale(70, 2).refreshBody();
 
-        this.physics.add.overlap(player, spikes, takeDamage, null, this);
-        this.physics.add.overlap(player, ghosts, takeDamage, null, this);
-        this.physics.add.overlap(rocks, ghosts, killGhost, null, this);
-        this.physics.add.overlap(player, door, winGame, null, this);
+            // Plataformas
+            createPlatform(400, 400, 4);
+            createPlatform(700, 300, 3);
+            createPlatform(1000, 450, 5);
+            createPlatform(1400, 350, 4);
+            
+            // Trampas
+            spikes.create(700, 270, 'spikeTex');
+            spikes.create(1400, 320, 'spikeTex');
 
-        // --- 7. CÁMARA (Sigue al jugador) ---
-        this.cameras.main.setBounds(0, 0, 2000, 600);
-        this.cameras.main.startFollow(player, true, 0.08, 0.08);
+            // Meta
+            createPlatform(1900, 200, 6);
+            
+            // Puerta
+            door = this.add.rectangle(1900, 150, 40, 60, 0xffd700);
+            this.physics.add.existing(door, true); // true = estático
 
-        // --- 8. CONTROLES PC ---
-        cursors = this.input.keyboard.createCursorKeys();
+            // --- 4. JUGADOR ---
+            player = this.physics.add.sprite(100, 400, 'dudeTex');
+            player.setBounce(0.1);
+            player.setCollideWorldBounds(true);
 
-        // --- 9. INTERFAZ MÓVIL (Tu código original mejorado) ---
-        createInterface(this);
+            // --- 5. ENEMIGOS ---
+            ghosts = this.physics.add.group();
+            rocks = this.physics.add.group({ defaultKey: 'rockTex', maxSize: 20 });
+
+            spawnGhost(600, 300);
+            spawnGhost(1200, 200);
+            spawnGhost(1700, 400);
+
+            // --- 6. COLISIONES ---
+            this.physics.add.collider(player, platforms);
+            this.physics.add.collider(ghosts, platforms);
+            this.physics.add.collider(rocks, platforms, (r) => r.destroy());
+
+            this.physics.add.overlap(player, spikes, takeDamage, null, this);
+            this.physics.add.overlap(player, ghosts, takeDamage, null, this);
+            this.physics.add.overlap(rocks, ghosts, killGhost, null, this);
+            this.physics.add.overlap(player, door, winGame, null, this);
+
+            // --- 7. CÁMARA Y CONTROLES ---
+            this.cameras.main.setBounds(0, 0, 2000, 600);
+            this.cameras.main.startFollow(player, true, 0.08, 0.08);
+
+            cursors = this.input.keyboard.createCursorKeys();
+            // CORRECCIÓN IMPORTANTE: Definimos la tecla Z aquí, UNA SOLA VEZ
+            keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
+
+            // --- 8. INTERFAZ ---
+            createInterface(this);
+
+            txtDebug = this.add.text(10, 50, 'Sistema: OK', { fontSize: '12px', color: '#ffff00' }).setScrollFactor(0).setDepth(1000);
+
+        } catch (e) {
+            console.error(e);
+            alert("Error al iniciar: " + e.message);
+        }
     }
 
-    function createLevel() {
-        const p = platforms;
-        const s = spikes;
-
-        // Plataformas y Obstáculos
-        p.create(400, 400, 'ground');
-        
-        // Trampa
-        p.create(700, 300, 'ground');
-        s.create(700, 268, 'spikeTex'); // Pincho arriba
-
-        p.create(1000, 450, 'ground');
-        
-        // Muro alto
-        p.create(1400, 350, 'ground');
-        s.create(1400, 500, 'spikeTex'); // Pincho en el suelo bajo el puente
-
-        // Meta (Al final del mapa)
-        const endX = 1900;
-        const endY = 150;
-        p.create(endX, endY + 80, 'ground').setScale(2,1).refreshBody();
-
-        // Puerta
-        door = this.add.container(endX, endY);
-        let doorFrame = this.add.rectangle(0, 0, 50, 70, 0x555555).setStrokeStyle(2, 0xaaaaaa);
-        let doorInner = this.add.rectangle(0, 0, 40, 60, 0x331111);
-        let doorKnob = this.add.circle(15, 5, 3, 0xffd700);
-        let exitText = this.add.text(-18, -45, 'EXIT', { fontSize: '12px', color: '#0f0', fontStyle: 'bold' });
-        door.add([doorFrame, doorInner, doorKnob, exitText]);
-        
-        this.physics.world.enable(door);
-        door.body.setAllowGravity(false);
-        door.body.setImmovable(true);
-        door.body.setSize(40, 60);
+    function createPlatform(x, y, widthScale) {
+        platforms.create(x, y, 'groundTex').setScale(widthScale, 1).refreshBody();
     }
 
     function spawnGhost(x, y) {
         let g = ghosts.create(x, y, 'ghostTex');
         g.setBounce(1);
         g.setCollideWorldBounds(true);
-        g.setVelocityX(-120); // Se mueve
+        g.setVelocityX(-100);
         g.body.allowGravity = false; 
     }
 
     function update(time, delta) {
         if (isGameOver) return;
 
-        // Reset velocidad
         player.setVelocityX(0);
 
-        // INPUT: Mezclamos Táctil (variables) + Teclado (cursors)
+        // Inputs
         const isLeft = moveLeft || cursors.left.isDown;
         const isRight = moveRight || cursors.right.isDown;
         const isJump = jump || cursors.up.isDown || cursors.space.isDown;
-        const isShoot = shoot;
-        
-        // Tecla Z para disparar en PC
-        const keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
+        const isShoot = shoot || keyZ.isDown;
 
         if (isLeft) {
             player.setVelocityX(-250);
-            player.anims.play('left', true);
             facingRight = false;
         } else if (isRight) {
             player.setVelocityX(250);
-            player.anims.play('right', true);
             facingRight = true;
-        } else {
-            player.anims.play('turn');
         }
 
         if (isJump && (player.body.touching.down || player.body.blocked.down)) {
@@ -205,27 +201,24 @@
             jump = false; 
         }
 
-        // DISPARAR
-        if ((isShoot || keyZ.isDown) && time > lastFired) {
+        if (isShoot && time > lastFired) {
             fireRock(time);
         }
 
-        // Actualizar UI Textos
+        // UI
         txtLives.setText('VIDAS: ' + lives);
         txtAmmo.setText('ROCAS: ' + ammo);
     }
 
     function fireRock(time) {
         if (ammo <= 0) return;
-
         let r = rocks.get(player.x, player.y);
         if (r) {
             r.setActive(true).setVisible(true);
             r.body.allowGravity = true;
-            // Dispara en la dirección que miras
-            r.setVelocity(facingRight ? 500 : -500, -150);
+            r.setVelocity(facingRight ? 500 : -500, -200);
             ammo--;
-            lastFired = time + 400; // Cooldown
+            lastFired = time + 400; 
         }
     }
 
@@ -233,15 +226,11 @@
         lives--;
         player.setTint(0xff0000);
         player.setVelocityY(-400);
-        player.x = 100; // Checkpoint al inicio
-        
+        player.x = 100; player.y = 400; // Reset
         this.time.delayedCall(500, () => player.clearTint());
 
         if (lives <= 0) {
-            isGameOver = true;
-            this.physics.pause();
-            alert("💀 GAME OVER 💀");
-            location.reload();
+            physicsPause("💀 GAME OVER 💀");
         }
     }
 
@@ -251,17 +240,20 @@
     }
 
     function winGame() {
-        this.physics.pause();
-        alert("🏆 ¡NIVEL COMPLETADO! 🏆");
+        physicsPause("🏆 ¡GANASTE! 🏆");
+    }
+
+    function physicsPause(msg) {
+        isGameOver = true;
+        game.scene.scenes[0].physics.pause();
+        alert(msg);
         location.reload();
     }
 
-    // --- INTERFAZ (Tu código original + Botón Disparo + Info) ---
     function createInterface(scene) {
-        // Creamos un contenedor que IGNORA la cámara (se queda pegado a la pantalla)
         uiContainer = scene.add.container(0, 0).setScrollFactor(0).setDepth(999);
 
-        // 1. INFO SUPERIOR (Vidas y Rocas)
+        // Barra Info
         let topBar = scene.add.graphics();
         topBar.fillStyle(0x000000, 0.5);
         topBar.fillRect(0, 0, 800, 40);
@@ -271,61 +263,37 @@
         txtAmmo = scene.add.text(650, 10, 'ROCAS: 10', { fontSize: '20px', color: '#ffffff', fontStyle: 'bold' });
         uiContainer.add([txtLives, txtAmmo]);
 
-        // 2. BARRA INFERIOR (Controles)
+        // Zona Botones
         let graphics = scene.add.graphics();
         graphics.fillStyle(0x0a0a0a, 1);
         graphics.fillRect(0, 500, 800, 100);
         graphics.lineStyle(4, 0x00ff00);
         graphics.lineBetween(0, 500, 800, 500);
-        uiContainer.add(graphics); // Agregar al contenedor fijo
+        uiContainer.add(graphics);
 
-        const buttonY = 550; 
+        const btnY = 550; 
+        // Botones
+        let btnL = createBtn(scene, 100, btnY, '<', 0x333333, () => moveLeft=true, () => moveLeft=false);
+        let btnR = createBtn(scene, 220, btnY, '>', 0x333333, () => moveRight=true, () => moveRight=false);
+        let btnF = createBtn(scene, 580, btnY, 'FIRE', 0x555555, () => shoot=true, () => shoot=false);
+        let btnJ = createBtn(scene, 700, btnY, 'JUMP', 0x990000, () => jump=true, () => jump=false);
 
-        // --- BOTÓN IZQUIERDA ---
-        let btnL = scene.add.container(100, buttonY); 
-        btnL.add(scene.add.circle(0, 0, 40, 0x333333).setStrokeStyle(2, 0x555555));
-        btnL.add(scene.add.text(-12, -20, '<', { fontSize: '40px', color: '#00ffff', fontStyle: 'bold' }));
-        let hitL = scene.add.circle(0, 0, 50, 0x000000, 0).setInteractive(); 
-        hitL.on('pointerdown', () => { moveLeft = true; btnL.y = buttonY + 2; }); 
-        hitL.on('pointerup', () => { moveLeft = false; btnL.y = buttonY; });
-        hitL.on('pointerout', () => { moveLeft = false; btnL.y = buttonY; });
-        btnL.add(hitL);
-        uiContainer.add(btnL);
+        uiContainer.add([btnL, btnR, btnF, btnJ]);
+    }
 
-        // --- BOTÓN DERECHA ---
-        let btnR = scene.add.container(220, buttonY); 
-        btnR.add(scene.add.circle(0, 0, 40, 0x333333).setStrokeStyle(2, 0x555555));
-        btnR.add(scene.add.text(-12, -20, '>', { fontSize: '40px', color: '#00ffff', fontStyle: 'bold' }));
-        let hitR = scene.add.circle(0, 0, 50, 0x000000, 0).setInteractive();
-        hitR.on('pointerdown', () => { moveRight = true; btnR.y = buttonY + 2; });
-        hitR.on('pointerup', () => { moveRight = false; btnR.y = buttonY; });
-        hitR.on('pointerout', () => { moveRight = false; btnR.y = buttonY; });
-        btnR.add(hitR);
-        uiContainer.add(btnR);
+    function createBtn(scene, x, y, text, color, downFn, upFn) {
+        let btn = scene.add.container(x, y);
+        let circle = scene.add.circle(0, 0, 40, color).setStrokeStyle(2, 0xffffff);
+        let label = scene.add.text(-15, -15, text, { fontSize: '20px', fontStyle: 'bold' });
+        if(text.length > 1) label.x = -25;
+        
+        let hit = scene.add.circle(0, 0, 50, 0x000000, 0).setInteractive();
+        hit.on('pointerdown', () => { downFn(); btn.y += 4; });
+        hit.on('pointerup', () => { upFn(); btn.y -= 4; });
+        hit.on('pointerout', () => { upFn(); btn.y -= 4; });
 
-        // --- BOTÓN DISPARO (NUEVO) ---
-        // Lo ponemos en X=580 (antes del salto)
-        let btnF = scene.add.container(580, buttonY); 
-        btnF.add(scene.add.circle(0, 0, 40, 0x555555).setStrokeStyle(2, 0x999999));
-        btnF.add(scene.add.text(-22, -12, 'FIRE', { fontSize: '18px', color: '#fff', fontStyle: 'bold' }));
-        let hitF = scene.add.circle(0, 0, 50, 0x000000, 0).setInteractive();
-        hitF.on('pointerdown', () => { shoot = true; btnF.y = buttonY + 4; });
-        hitF.on('pointerup', () => { shoot = false; btnF.y = buttonY; });
-        hitF.on('pointerout', () => { shoot = false; btnF.y = buttonY; });
-        btnF.add(hitF);
-        uiContainer.add(btnF);
-
-        // --- BOTÓN SALTO ---
-        // Lo movemos un poquito más a la derecha (700 -> 720) para dar espacio al FIRE
-        let btnJ = scene.add.container(720, buttonY); 
-        btnJ.add(scene.add.circle(0, 0, 45, 0x990000).setStrokeStyle(3, 0xffcccc));
-        btnJ.add(scene.add.text(-28, -15, 'JUMP', { fontSize: '22px', color: '#fff', fontStyle: 'bold' }));
-        let hitJ = scene.add.circle(0, 0, 55, 0x000000, 0).setInteractive();
-        hitJ.on('pointerdown', () => { jump = true; btnJ.y = buttonY + 4; });
-        hitJ.on('pointerup', () => { jump = false; btnJ.y = buttonY; });
-        hitJ.on('pointerout', () => { jump = false; btnJ.y = buttonY; });
-        btnJ.add(hitJ);
-        uiContainer.add(btnJ);
+        btn.add([circle, label, hit]);
+        return btn;
     }
 </script>
 
