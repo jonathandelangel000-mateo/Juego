@@ -2,12 +2,28 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Plataformas V6 - Optimizado</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Juego Final - AntiZoom</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
     <style>
-        body { margin: 0; background-color: #000; overflow: hidden; touch-action: none; }
-        canvas { display: block; margin: 0 auto; }
+        /* ESTILOS PARA BLOQUEAR GESTOS DEL NAVEGADOR */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden; /* Evita scroll */
+            touch-action: none; /* Evita gestos táctiles del navegador */
+            user-select: none; /* Evita seleccionar texto */
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            touch-action: none;
+        }
     </style>
 </head>
 <body>
@@ -17,16 +33,17 @@
         type: Phaser.AUTO,
         width: 800,
         height: 600,
-        backgroundColor: '#1a1a2e', // Color de fondo por si falla el cielo
+        backgroundColor: '#111',
         scale: {
-            mode: Phaser.Scale.FIT,
+            mode: Phaser.Scale.FIT, // Ajuste perfecto
             autoCenter: Phaser.Scale.CENTER_BOTH
         },
-        input: { activePointers: 3 }, // Multitouch activado
+        input: { activePointers: 4 }, // Multitouch
         physics: {
             default: 'arcade',
             arcade: {
-                gravity: { y: 1200 },
+                gravity: { y: 1000 }, // Gravedad controlada
+                tileBias: 32, // ARREGLO PARA QUE NO SE HUNDA EN EL SUELO
                 debug: false
             }
         },
@@ -35,7 +52,7 @@
 
     // VARIABLES
     let player, platforms, door;
-    let cursors, keyZ; // Teclas
+    let cursors, keyZ;
     let ghosts, rocks, spikes;
     let uiContainer;
     
@@ -45,128 +62,120 @@
     let lastFired = 0;
     let isGameOver = false;
 
-    // UI
-    let txtLives, txtAmmo, txtDebug;
+    // UI TEXTOS
+    let txtLives, txtAmmo;
     
-    // CONTROLES TÁCTILES
+    // CONTROLES
     let moveLeft = false, moveRight = false, jump = false, shoot = false;
     let facingRight = true; 
 
     const game = new Phaser.Game(config);
 
     function preload() {
-        // NO CARGAMOS IMÁGENES EXTERNAS para evitar errores de conexión.
-        // Todo se generará matemáticamente en 'create'.
+        // Generamos todo con código para que no falle la carga
     }
 
     function create() {
-        try {
-            // --- 1. GENERADOR DE GRÁFICOS (Textures) ---
-            let g = this.make.graphics({x:0, y:0, add: false});
+        // --- 1. GENERADOR DE TEXTURAS ---
+        let g = this.make.graphics({x:0, y:0, add: false});
 
-            // Cielo (Degradado simple)
-            g.fillGradientStyle(0x0f0c29, 0x0f0c29, 0x302b63, 0x24243e, 1);
-            g.fillRect(0, 0, 32, 32);
-            g.generateTexture('skyTex', 32, 32);
+        // Cielo
+        g.fillGradientStyle(0x020024, 0x020024, 0x090979, 0x00d4ff, 1);
+        g.fillRect(0, 0, 64, 64);
+        g.generateTexture('skyTex', 64, 64);
 
-            // Suelo (Bloque verde neón)
-            g.clear();
-            g.fillStyle(0x00ff00, 1); g.fillRect(0, 0, 32, 32);
-            g.fillStyle(0x004400, 1); g.fillRect(2, 2, 28, 28); // Borde
-            g.generateTexture('groundTex', 32, 32);
+        // Suelo (Verde Neón con Borde)
+        g.clear();
+        g.fillStyle(0x00ff00, 1); g.fillRect(0, 0, 32, 32);
+        g.lineStyle(2, 0xffffff, 1); g.strokeRect(0, 0, 32, 32);
+        g.generateTexture('groundTex', 32, 32);
 
-            // Personaje (Cuadrado Azul)
-            g.clear();
-            g.fillStyle(0x00ccff, 1); g.fillRect(0, 0, 30, 45);
-            g.generateTexture('dudeTex', 30, 45);
+        // Personaje (Azul)
+        g.clear();
+        g.fillStyle(0x00ffff, 1); g.fillRect(0, 0, 30, 45);
+        g.generateTexture('dudeTex', 30, 45);
 
-            // Fantasma (Círculo Blanco)
-            g.clear(); g.fillStyle(0xffffff, 0.9); g.fillCircle(15, 15, 15);
-            g.generateTexture('ghostTex', 30, 30);
+        // Fantasma (Blanco)
+        g.clear(); g.fillStyle(0xffffff, 0.9); g.fillCircle(15, 15, 15);
+        g.generateTexture('ghostTex', 30, 30);
 
-            // Roca (Gris)
-            g.clear(); g.fillStyle(0x888888, 1); g.fillCircle(8, 8, 8);
-            g.generateTexture('rockTex', 16, 16);
+        // Roca (Gris)
+        g.clear(); g.fillStyle(0xaaaaaa, 1); g.fillCircle(8, 8, 8);
+        g.generateTexture('rockTex', 16, 16);
 
-            // Pincho (Rojo)
-            g.clear(); g.fillStyle(0xff0000, 1);
-            g.beginPath(); g.moveTo(0, 32); g.lineTo(16, 0); g.lineTo(32, 32); g.closePath(); g.fillPath();
-            g.generateTexture('spikeTex', 32, 32);
+        // Pincho (Rojo)
+        g.clear(); g.fillStyle(0xff0000, 1);
+        g.beginPath(); g.moveTo(0, 32); g.lineTo(16, 0); g.lineTo(32, 32); g.closePath(); g.fillPath();
+        g.generateTexture('spikeTex', 32, 32);
 
-            // --- 2. MUNDO ---
-            this.physics.world.setBounds(0, 0, 2000, 600);
-            
-            // Fondo infinito
-            this.add.tileSprite(0, 0, 2000, 600, 'skyTex').setOrigin(0, 0).setScrollFactor(0.5).setScale(4);
+        // --- 2. MUNDO ---
+        this.physics.world.setBounds(0, 0, 2400, 600);
+        this.add.tileSprite(0, 0, 2400, 600, 'skyTex').setOrigin(0, 0).setScrollFactor(0.5);
 
-            // --- 3. NIVEL ---
-            platforms = this.physics.add.staticGroup();
-            spikes = this.physics.add.staticGroup();
+        // --- 3. NIVEL ---
+        platforms = this.physics.add.staticGroup();
+        spikes = this.physics.add.staticGroup();
 
-            // Suelo base
-            platforms.create(1000, 550, 'groundTex').setScale(70, 2).refreshBody();
+        // Suelo Base
+        createPlatform(1200, 568, 80); // Suelo largo y grueso
 
-            // Plataformas
-            createPlatform(400, 400, 4);
-            createPlatform(700, 300, 3);
-            createPlatform(1000, 450, 5);
-            createPlatform(1400, 350, 4);
-            
-            // Trampas
-            spikes.create(700, 270, 'spikeTex');
-            spikes.create(1400, 320, 'spikeTex');
+        // Plataformas
+        createPlatform(400, 400, 6);
+        createPlatform(700, 300, 4);
+        createPlatform(1100, 420, 5);
+        
+        // Trampa (Pincho)
+        spikes.create(700, 268, 'spikeTex');
 
-            // Meta
-            createPlatform(1900, 200, 6);
-            
-            // Puerta
-            door = this.add.rectangle(1900, 150, 40, 60, 0xffd700);
-            this.physics.add.existing(door, true); // true = estático
+        // Muro Alto
+        createPlatform(1500, 350, 4);
+        spikes.create(1500, 480, 'spikeTex'); // Trampa bajo el puente
 
-            // --- 4. JUGADOR ---
-            player = this.physics.add.sprite(100, 400, 'dudeTex');
-            player.setBounce(0.1);
-            player.setCollideWorldBounds(true);
+        // Meta
+        createPlatform(2200, 250, 6);
+        
+        door = this.add.rectangle(2200, 200, 40, 60, 0xffd700);
+        this.physics.add.existing(door, true);
 
-            // --- 5. ENEMIGOS ---
-            ghosts = this.physics.add.group();
-            rocks = this.physics.add.group({ defaultKey: 'rockTex', maxSize: 20 });
+        // --- 4. JUGADOR ---
+        player = this.physics.add.sprite(100, 400, 'dudeTex');
+        player.setBounce(0.1);
+        player.setCollideWorldBounds(true);
+        // ¡IMPORTANTE! Límite de velocidad para que no atraviese el suelo
+        player.body.setMaxVelocity(400, 800); 
 
-            spawnGhost(600, 300);
-            spawnGhost(1200, 200);
-            spawnGhost(1700, 400);
+        // --- 5. ENEMIGOS ---
+        ghosts = this.physics.add.group();
+        rocks = this.physics.add.group({ defaultKey: 'rockTex', maxSize: 20 });
 
-            // --- 6. COLISIONES ---
-            this.physics.add.collider(player, platforms);
-            this.physics.add.collider(ghosts, platforms);
-            this.physics.add.collider(rocks, platforms, (r) => r.destroy());
+        spawnGhost(600, 300);
+        spawnGhost(1200, 200);
+        spawnGhost(1800, 300);
 
-            this.physics.add.overlap(player, spikes, takeDamage, null, this);
-            this.physics.add.overlap(player, ghosts, takeDamage, null, this);
-            this.physics.add.overlap(rocks, ghosts, killGhost, null, this);
-            this.physics.add.overlap(player, door, winGame, null, this);
+        // --- 6. COLISIONES ---
+        this.physics.add.collider(player, platforms);
+        this.physics.add.collider(ghosts, platforms);
+        this.physics.add.collider(rocks, platforms, (r) => r.destroy());
 
-            // --- 7. CÁMARA Y CONTROLES ---
-            this.cameras.main.setBounds(0, 0, 2000, 600);
-            this.cameras.main.startFollow(player, true, 0.08, 0.08);
+        this.physics.add.overlap(player, spikes, takeDamage, null, this);
+        this.physics.add.overlap(player, ghosts, takeDamage, null, this);
+        this.physics.add.overlap(rocks, ghosts, killGhost, null, this);
+        this.physics.add.overlap(player, door, winGame, null, this);
 
-            cursors = this.input.keyboard.createCursorKeys();
-            // CORRECCIÓN IMPORTANTE: Definimos la tecla Z aquí, UNA SOLA VEZ
-            keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
+        // --- 7. CÁMARA ---
+        this.cameras.main.setBounds(0, 0, 2400, 600);
+        this.cameras.main.startFollow(player, true, 0.08, 0.08);
 
-            // --- 8. INTERFAZ ---
-            createInterface(this);
+        // --- 8. CONTROLES ---
+        cursors = this.input.keyboard.createCursorKeys();
+        keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
 
-            txtDebug = this.add.text(10, 50, 'Sistema: OK', { fontSize: '12px', color: '#ffff00' }).setScrollFactor(0).setDepth(1000);
-
-        } catch (e) {
-            console.error(e);
-            alert("Error al iniciar: " + e.message);
-        }
+        // --- 9. INTERFAZ ---
+        createInterface(this);
     }
 
-    function createPlatform(x, y, widthScale) {
-        platforms.create(x, y, 'groundTex').setScale(widthScale, 1).refreshBody();
+    function createPlatform(x, y, scaleX) {
+        platforms.create(x, y, 'groundTex').setScale(scaleX, 1).refreshBody();
     }
 
     function spawnGhost(x, y) {
@@ -174,7 +183,7 @@
         g.setBounce(1);
         g.setCollideWorldBounds(true);
         g.setVelocityX(-100);
-        g.body.allowGravity = false; 
+        g.body.allowGravity = false;
     }
 
     function update(time, delta) {
@@ -182,7 +191,6 @@
 
         player.setVelocityX(0);
 
-        // Inputs
         const isLeft = moveLeft || cursors.left.isDown;
         const isRight = moveRight || cursors.right.isDown;
         const isJump = jump || cursors.up.isDown || cursors.space.isDown;
@@ -197,15 +205,14 @@
         }
 
         if (isJump && (player.body.touching.down || player.body.blocked.down)) {
-            player.setVelocityY(-650);
-            jump = false; 
+            player.setVelocityY(-600);
+            jump = false;
         }
 
         if (isShoot && time > lastFired) {
             fireRock(time);
         }
 
-        // UI
         txtLives.setText('VIDAS: ' + lives);
         txtAmmo.setText('ROCAS: ' + ammo);
     }
@@ -218,7 +225,7 @@
             r.body.allowGravity = true;
             r.setVelocity(facingRight ? 500 : -500, -200);
             ammo--;
-            lastFired = time + 400; 
+            lastFired = time + 400;
         }
     }
 
@@ -226,11 +233,11 @@
         lives--;
         player.setTint(0xff0000);
         player.setVelocityY(-400);
-        player.x = 100; player.y = 400; // Reset
+        player.x = 100; player.y = 400;
         this.time.delayedCall(500, () => player.clearTint());
 
         if (lives <= 0) {
-            physicsPause("💀 GAME OVER 💀");
+            gameOver("💀 GAME OVER");
         }
     }
 
@@ -240,57 +247,60 @@
     }
 
     function winGame() {
-        physicsPause("🏆 ¡GANASTE! 🏆");
+        gameOver("🏆 ¡GANASTE!");
     }
 
-    function physicsPause(msg) {
+    function gameOver(msg) {
         isGameOver = true;
-        game.scene.scenes[0].physics.pause();
+        this.physics.pause();
         alert(msg);
         location.reload();
     }
 
     function createInterface(scene) {
-        uiContainer = scene.add.container(0, 0).setScrollFactor(0).setDepth(999);
+        uiContainer = scene.add.container(0, 0).setScrollFactor(0).setDepth(9999);
 
-        // Barra Info
+        // Barra Superior
         let topBar = scene.add.graphics();
-        topBar.fillStyle(0x000000, 0.5);
-        topBar.fillRect(0, 0, 800, 40);
+        topBar.fillStyle(0x000000, 0.6);
+        topBar.fillRect(0, 0, 800, 50);
         uiContainer.add(topBar);
 
-        txtLives = scene.add.text(20, 10, 'VIDAS: 3', { fontSize: '20px', color: '#ff4444', fontStyle: 'bold' });
-        txtAmmo = scene.add.text(650, 10, 'ROCAS: 10', { fontSize: '20px', color: '#ffffff', fontStyle: 'bold' });
+        txtLives = scene.add.text(20, 15, 'VIDAS: 3', { fontSize: '24px', color: '#ff4444', fontStyle: 'bold' });
+        txtAmmo = scene.add.text(650, 15, 'ROCAS: 10', { fontSize: '24px', color: '#ffffff', fontStyle: 'bold' });
         uiContainer.add([txtLives, txtAmmo]);
 
-        // Zona Botones
+        // Zona Botones (Fondo)
         let graphics = scene.add.graphics();
-        graphics.fillStyle(0x0a0a0a, 1);
-        graphics.fillRect(0, 500, 800, 100);
+        graphics.fillStyle(0x111111, 0.9);
+        graphics.fillRect(0, 480, 800, 120); // Un poco más alto para seguridad
         graphics.lineStyle(4, 0x00ff00);
-        graphics.lineBetween(0, 500, 800, 500);
+        graphics.lineBetween(0, 480, 800, 480);
         uiContainer.add(graphics);
 
-        const btnY = 550; 
-        // Botones
-        let btnL = createBtn(scene, 100, btnY, '<', 0x333333, () => moveLeft=true, () => moveLeft=false);
-        let btnR = createBtn(scene, 220, btnY, '>', 0x333333, () => moveRight=true, () => moveRight=false);
+        // Posición segura (Más centrada verticalmente en la zona negra)
+        const btnY = 540; 
+
+        // Botones (Movidos un poco hacia adentro para evitar bordes curvos de celulares)
+        let btnL = createBtn(scene, 90, btnY, '<', 0x333333, () => moveLeft=true, () => moveLeft=false);
+        let btnR = createBtn(scene, 210, btnY, '>', 0x333333, () => moveRight=true, () => moveRight=false);
         let btnF = createBtn(scene, 580, btnY, 'FIRE', 0x555555, () => shoot=true, () => shoot=false);
-        let btnJ = createBtn(scene, 700, btnY, 'JUMP', 0x990000, () => jump=true, () => jump=false);
+        let btnJ = createBtn(scene, 710, btnY, 'JUMP', 0xaa0000, () => jump=true, () => jump=false);
 
         uiContainer.add([btnL, btnR, btnF, btnJ]);
     }
 
     function createBtn(scene, x, y, text, color, downFn, upFn) {
         let btn = scene.add.container(x, y);
-        let circle = scene.add.circle(0, 0, 40, color).setStrokeStyle(2, 0xffffff);
+        let circle = scene.add.circle(0, 0, 42, color).setStrokeStyle(3, 0xffffff);
         let label = scene.add.text(-15, -15, text, { fontSize: '20px', fontStyle: 'bold' });
-        if(text.length > 1) label.x = -25;
+        if(text.length > 2) label.x = -25;
         
-        let hit = scene.add.circle(0, 0, 50, 0x000000, 0).setInteractive();
+        // Hitbox más grande para facilitar el toque
+        let hit = scene.add.circle(0, 0, 60, 0x000000, 0).setInteractive();
         hit.on('pointerdown', () => { downFn(); btn.y += 4; });
         hit.on('pointerup', () => { upFn(); btn.y -= 4; });
-        hit.on('pointerout', () => { upFn(); btn.y -= 4; });
+        hit.on('pointerout', () => { upFn(); btn.y -= 4; }); // Clave para evitar botones pegados
 
         btn.add([circle, label, hit]);
         return btn;
