@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Plataformas V3 - Combate y Enemigos</title>
+    <title>Plataformas V3.1 - Fixed</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
     <style>
-        body { margin: 0; background-color: #111; overflow: hidden; touch-action: none; }
-        canvas { display: block; }
+        body { margin: 0; background-color: #000; overflow: hidden; touch-action: none; }
+        canvas { display: block; margin: 0 auto; } /* Centrado automático */
     </style>
 </head>
 <body>
@@ -16,39 +16,39 @@
     const config = {
         type: Phaser.AUTO,
         scale: {
-            mode: Phaser.Scale.RESIZE, // Adaptable a cualquier pantalla
-            width: '100%',
-            height: '100%'
+            mode: Phaser.Scale.FIT, // MODO SEGURO: Se ajusta sin romperse
+            autoCenter: Phaser.Scale.CENTER_BOTH,
+            width: 1280, // Resolución HD fija
+            height: 720
         },
-        input: { activePointers: 4 }, // Aumentamos pointers para disparar + correr + saltar
+        input: { activePointers: 3 },
         physics: {
             default: 'arcade',
             arcade: {
-                gravity: { y: 1200 },
+                gravity: { y: 1500 }, // Gravedad ajustada
                 debug: false
             }
         },
         scene: { preload: preload, create: create, update: update }
     };
 
-    // VARIABLES GLOBALES
+    // VARIABLES
     let player, platforms, cursors, door;
-    let ghosts, rocks, spikes; // Grupos de objetos
+    let ghosts, rocks, spikes;
     let uiContainer;
     
-    // ESTADO DEL JUEGO
+    // ESTADO
     let lives = 3;
-    let ammo = 10;
-    let score = 0;
-    let lastFired = 0; // Para controlar la velocidad de disparo
+    let ammo = 5; // Te doy pocas piedras para que sea un reto
+    let lastFired = 0;
     let isGameOver = false;
 
-    // UI TEXTOS
+    // UI
     let txtLives, txtAmmo;
     
     // CONTROLES
     let moveLeft = false, moveRight = false, jump = false, shoot = false;
-    let facingRight = true; // Para saber a dónde lanzar la piedra
+    let facingRight = true; 
 
     const game = new Phaser.Game(config);
 
@@ -59,56 +59,47 @@
     }
 
     function create() {
-        // --- 1. GENERACIÓN DE TEXTURAS (DIBUJO MANUAL) ---
-        // Creamos gráficos para no depender de imágenes externas para enemigos/balas
-        
-        // FANTASMA
+        // --- 1. GENERAR TEXTURAS (CÍRCULOS Y FORMAS) ---
         let g = this.make.graphics({x:0, y:0, add: false});
-        g.fillStyle(0xffffff, 0.8);
-        g.fillCircle(16, 16, 16); // Cabeza
-        g.fillRect(0, 16, 32, 16); // Cuerpo
-        g.generateTexture('ghostTex', 32, 32);
+        
+        // Fantasma (Blanco)
+        g.fillStyle(0xffffff, 0.9);
+        g.fillCircle(20, 20, 20); 
+        g.generateTexture('ghostTex', 40, 40);
 
-        // ROCA
+        // Roca (Gris)
         g.clear();
         g.fillStyle(0x888888, 1);
-        g.fillCircle(8, 8, 8);
-        g.generateTexture('rockTex', 16, 16);
+        g.fillCircle(10, 10, 10);
+        g.generateTexture('rockTex', 20, 20);
 
-        // PINCHOS (Obstáculo)
+        // Pincho (Rojo)
         g.clear();
         g.fillStyle(0xff0000, 1);
-        g.beginPath();
-        g.moveTo(0, 32); g.lineTo(16, 0); g.lineTo(32, 32); // Triángulo
-        g.closePath();
-        g.fillPath();
-        g.generateTexture('spikeTex', 32, 32);
+        g.beginPath(); g.moveTo(0, 40); g.lineTo(20, 0); g.lineTo(40, 40); g.closePath(); g.fillPath();
+        g.generateTexture('spikeTex', 40, 40);
 
+        // --- 2. MUNDO ---
+        // Hacemos el nivel el doble de ancho que la pantalla
+        const worldWidth = 2500; 
+        const worldHeight = 720; // Altura fija igual a la pantalla
+        this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
 
-        // --- 2. CONFIGURACIÓN MUNDO ---
-        const width = this.scale.width;
-        const height = this.scale.height;
-        
-        // Mundo más largo (Nivel más completo)
-        const worldWidth = width > height ? width * 2.5 : width * 1.5; 
-        this.physics.world.setBounds(0, 0, worldWidth, height);
+        // Fondo
+        this.add.tileSprite(0, 0, worldWidth, worldHeight, 'sky').setOrigin(0, 0).setScrollFactor(0.5);
 
-        // Fondo Parallax
-        this.add.tileSprite(0, 0, worldWidth, height, 'sky').setOrigin(0, 0).setScrollFactor(0.5);
-
-        // --- 3. PLATAFORMAS Y OBSTÁCULOS ---
+        // --- 3. PLATAFORMAS ---
         platforms = this.physics.add.staticGroup();
         spikes = this.physics.add.staticGroup();
 
-        // Suelo Base
-        let groundY = height - 60;
-        platforms.create(worldWidth/2, groundY, 'ground').setScale(15, 2).refreshBody();
+        // Suelo Base (Largo infinito)
+        platforms.create(worldWidth/2, 700, 'ground').setScale(10, 2).refreshBody();
 
-        // Nivel Construido Manualmente
-        createLevel(worldWidth, groundY);
+        // Nivel
+        createLevel(worldWidth);
 
         // --- 4. JUGADOR ---
-        player = this.physics.add.sprite(100, groundY - 100, 'dude');
+        player = this.physics.add.sprite(100, 500, 'dude');
         player.setBounce(0.1);
         player.setCollideWorldBounds(true);
 
@@ -116,250 +107,210 @@
         this.anims.create({ key: 'turn', frames: [ { key: 'dude', frame: 4 } ], frameRate: 20 });
         this.anims.create({ key: 'right', frames: this.anims.generateFrameNumbers('dude', { start: 5, end: 8 }), frameRate: 10, repeat: -1 });
 
-        // --- 5. GRUPOS DE ENTIDADES ---
-        
-        // GRUPO DE ROCAS (Balas)
-        rocks = this.physics.add.group({
-            defaultKey: 'rockTex',
-            maxSize: 10
-        });
-
-        // GRUPO DE FANTASMAS
+        // --- 5. GRUPOS ---
+        rocks = this.physics.add.group({ defaultKey: 'rockTex', maxSize: 20 });
         ghosts = this.physics.add.group();
-        // Crear enemigos en posiciones fijas
-        spawnGhost(500, groundY - 200);
-        spawnGhost(worldWidth * 0.6, groundY - 350);
-        spawnGhost(worldWidth * 0.8, groundY - 150);
 
-        // --- 6. COLISIONES ---
+        // Enemigos
+        spawnGhost(700, 400);
+        spawnGhost(1200, 200);
+        spawnGhost(1800, 300);
+
+        // --- 6. FÍSICA ---
         this.physics.add.collider(player, platforms);
         this.physics.add.collider(ghosts, platforms);
-        this.physics.add.collider(rocks, platforms, (rock) => { rock.destroy(); }); // Roca choca pared -> desaparece
+        this.physics.add.collider(rocks, platforms, (r) => r.destroy());
         this.physics.add.collider(player, spikes, hitSpike, null, this);
-
-        // Interacciones clave
         this.physics.add.overlap(player, ghosts, hitGhost, null, this);
         this.physics.add.overlap(rocks, ghosts, killGhost, null, this);
         this.physics.add.overlap(player, door, winGame, null, this);
 
-        // --- 7. CÁMARA Y CONTROLES ---
-        this.cameras.main.setBounds(0, 0, worldWidth, height);
+        // --- 7. CÁMARA ---
+        this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
         this.cameras.main.startFollow(player, true, 0.08, 0.08);
-        cursors = this.input.keyboard.createCursorKeys();
 
-        // --- 8. UI ---
-        createInterface(this, width, height);
+        // --- 8. CONTROLES PC ---
+        cursors = this.input.keyboard.createCursorKeys();
+        
+        // --- 9. INTERFAZ ---
+        createInterface(this);
     }
 
-    function createLevel(worldWidth, groundY) {
-        // Generador de plataformas
+    function createLevel(ww) {
         const p = platforms;
         const s = spikes;
 
-        // Plataforma 1 con pinchos abajo
-        p.create(400, groundY - 120, 'ground');
-        s.create(400, groundY - 35, 'spikeTex'); // Pincho en el suelo
+        // Plataforma inicial
+        p.create(400, 550, 'ground');
 
-        // Escalera subiendo
-        p.create(700, groundY - 220, 'ground');
-        p.create(950, groundY - 320, 'ground');
+        // Reto 1: Salto con pincho
+        p.create(700, 450, 'ground');
+        s.create(700, 650, 'spikeTex'); // Pincho en el suelo
 
-        // Zona de salto largo
-        p.create(1300, groundY - 250, 'ground');
-        s.create(1300, groundY - 282, 'spikeTex'); // Pincho sorpresa ARRIBA de la plataforma
+        // Reto 2: Escalera
+        p.create(1000, 350, 'ground');
+        p.create(1300, 250, 'ground');
 
-        // Plataforma alta final
-        let finalPlatX = worldWidth - 200;
-        let finalPlatY = groundY - 400;
-        p.create(finalPlatX, finalPlatY, 'ground').setScale(1.5, 1).refreshBody();
+        // Reto 3: Muro alto
+        p.create(1700, 450, 'ground');
+        s.create(1700, 418, 'spikeTex'); // Pincho sorpresa
 
-        // PUERTA
-        door = this.add.container(finalPlatX, finalPlatY - 60); // Sobre la plataforma final
-        let doorFrame = this.add.rectangle(0, 0, 50, 70, 0x555555).setStrokeStyle(2, 0xaaaaaa);
-        let doorInner = this.add.rectangle(0, 0, 40, 60, 0x331111);
-        let doorKnob = this.add.circle(15, 5, 3, 0xffd700);
-        let exitText = this.add.text(-18, -45, 'EXIT', { fontSize: '12px', color: '#0f0', fontStyle: 'bold' });
-        door.add([doorFrame, doorInner, doorKnob, exitText]);
+        // Meta (Al final)
+        const endX = ww - 200;
+        const endY = 550;
+        p.create(endX, endY + 60, 'ground').setScale(2, 1).refreshBody();
+
+        // Puerta
+        door = this.add.container(endX, endY);
+        let dFrame = this.add.rectangle(0, 0, 60, 90, 0x555555).setStrokeStyle(3, 0xaaaaaa);
+        let dInner = this.add.rectangle(0, 0, 50, 80, 0x220000);
+        let dKnob = this.add.circle(20, 5, 5, 0xffd700);
+        door.add([dFrame, dInner, dKnob]);
         this.physics.world.enable(door);
         door.body.setAllowGravity(false);
         door.body.setImmovable(true);
     }
 
     function spawnGhost(x, y) {
-        let ghost = ghosts.create(x, y, 'ghostTex');
-        ghost.setBounce(1);
-        ghost.setCollideWorldBounds(true);
-        ghost.setVelocityX(-100); // Empieza moviéndose
-        ghost.body.allowGravity = false; // Vuela
-        // Animación simple de flotar
-        game.scene.scenes[0].tweens.add({
-            targets: ghost,
-            y: y - 30,
-            duration: 1500,
-            yoyo: true,
-            repeat: -1
-        });
+        let g = ghosts.create(x, y, 'ghostTex');
+        g.setBounce(1);
+        g.setCollideWorldBounds(true);
+        g.setVelocityX(-150);
+        g.body.allowGravity = false; 
     }
 
     function update(time, delta) {
         if (isGameOver) return;
 
-        // --- MOVIMIENTO ---
+        // Reset
+        player.setVelocityX(0);
         const isLeft = moveLeft || cursors.left.isDown;
         const isRight = moveRight || cursors.right.isDown;
         const isJump = jump || cursors.up.isDown || cursors.space.isDown;
-        const isShoot = shoot; // Botón presionado
-
-        // Disparo con teclado (Tecla Z)
+        const isShoot = shoot;
+        
+        // Disparo PC (Tecla Z)
         const keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
 
         if (isLeft) {
-            player.setVelocityX(-250);
+            player.setVelocityX(-300);
             player.anims.play('left', true);
             facingRight = false;
         } else if (isRight) {
-            player.setVelocityX(250);
+            player.setVelocityX(300);
             player.anims.play('right', true);
             facingRight = true;
         } else {
-            player.setVelocityX(0);
             player.anims.play('turn');
         }
 
         if (isJump && (player.body.touching.down || player.body.blocked.down)) {
-            player.setVelocityY(-650); // Salto limitado y controlado
+            player.setVelocityY(-750);
             jump = false; 
         }
 
-        // --- LÓGICA DE DISPARO ---
+        // DISPARO
         if ((isShoot || keyZ.isDown) && time > lastFired) {
             fireRock(time);
         }
 
-        // --- UI UPDATES ---
+        // TEXTO UI
         txtLives.setText('VIDAS: ' + lives);
         txtAmmo.setText('ROCAS: ' + ammo);
     }
 
     function fireRock(time) {
         if (ammo <= 0) return;
-
-        let rock = rocks.get(); // Obtener del grupo
-        if (rock) {
-            rock.setActive(true).setVisible(true);
-            rock.setPosition(player.x, player.y);
-            rock.body.allowGravity = true;
-            
-            // Velocidad y dirección
-            let velocityX = facingRight ? 500 : -500;
-            rock.setVelocity(velocityX, -200); // Un pequeño arco hacia arriba
-
+        let r = rocks.get(player.x, player.y);
+        if (r) {
+            r.setActive(true).setVisible(true);
+            r.body.allowGravity = true;
+            r.setVelocity(facingRight ? 600 : -600, -200);
             ammo--;
-            lastFired = time + 500; // Cooldown de 500ms
+            lastFired = time + 400;
         }
     }
 
-    function hitGhost(player, ghost) {
-        playerHurt();
-    }
+    function hitGhost(p, g) { takeDamage(); }
+    function hitSpike(p, s) { takeDamage(); }
 
-    function hitSpike(player, spike) {
-        playerHurt();
-    }
-
-    function playerHurt() {
-        // Pequeño rebote al ser dañado
-        player.setVelocityY(-300);
-        player.setTint(0xff0000);
-        
-        // Quitar vida
+    function takeDamage() {
         lives--;
+        player.setTint(0xff0000);
+        player.setVelocityY(-400);
+        // Regresar al inicio
+        player.x = 100; player.y = 500;
         
-        // Reset posición (checkpoint simple)
-        player.x = 100;
-        player.y = 300;
-        player.clearTint();
+        this.time.delayedCall(500, () => player.clearTint());
 
         if (lives <= 0) {
-            physicsPause();
-            txtLives.setText('VIDAS: 0');
-            alert("👻 GAME OVER 👻\nTe quedaste sin vidas.");
+            isGameOver = true;
+            this.physics.pause();
+            alert("☠️ GAME OVER ☠️");
             location.reload();
         }
     }
 
-    function killGhost(rock, ghost) {
-        rock.destroy();
-        ghost.destroy(); // ¡Adiós fantasma!
-        score += 100;
+    function killGhost(r, g) {
+        r.destroy();
+        g.destroy();
     }
 
     function winGame() {
-        physicsPause();
-        alert("🎉 ¡NIVEL COMPLETADO! 🎉\nTe sobraron " + ammo + " rocas.");
+        this.physics.pause();
+        alert("🏆 ¡GANASTE! 🏆");
         location.reload();
     }
 
-    function physicsPause() {
-        game.scene.scenes[0].physics.pause();
-        isGameOver = true;
-    }
-
-    function createInterface(scene, screenWidth, screenHeight) {
+    function createInterface(scene) {
+        // Contenedor FIJO (No se mueve con la cámara)
         uiContainer = scene.add.container(0, 0).setScrollFactor(0).setDepth(100);
 
-        // --- BARRA SUPERIOR (Vidas y Rocas) ---
+        // Barra Info Superior
         let topBar = scene.add.graphics();
-        topBar.fillStyle(0x000000, 0.5);
-        topBar.fillRect(0, 0, screenWidth, 40);
+        topBar.fillStyle(0x000000, 0.6);
+        topBar.fillRect(0, 0, 1280, 50);
         uiContainer.add(topBar);
 
-        txtLives = scene.add.text(20, 10, 'VIDAS: 3', { fontSize: '20px', fill: '#ff0000', fontStyle: 'bold' });
-        txtAmmo = scene.add.text(screenWidth - 150, 10, 'ROCAS: 10', { fontSize: '20px', fill: '#fff', fontStyle: 'bold' });
+        txtLives = scene.add.text(30, 15, 'VIDAS: 3', { fontSize: '24px', color: '#ff4444', fontStyle: 'bold' });
+        txtAmmo = scene.add.text(1100, 15, 'ROCAS: 5', { fontSize: '24px', color: '#ffffff', fontStyle: 'bold' });
         uiContainer.add([txtLives, txtAmmo]);
 
-        // --- BARRA INFERIOR (Controles) ---
-        const barHeight = 120;
-        const barY = screenHeight - barHeight;
+        // BARRA DE CONTROLES INFERIOR
+        let bottomBar = scene.add.graphics();
+        bottomBar.fillStyle(0x111111, 0.8);
+        bottomBar.fillRect(0, 580, 1280, 140); // 140px de alto
+        bottomBar.lineStyle(4, 0x00ff00);
+        bottomBar.lineBetween(0, 580, 1280, 580);
+        uiContainer.add(bottomBar);
+
+        // Botones (Coordenadas fijas para 1280x720)
+        const btnY = 650;
+
+        // Izquierda
+        createBtn(scene, 100, btnY, '<', 0x333333, () => moveLeft=true, () => moveLeft=false);
+        // Derecha
+        createBtn(scene, 250, btnY, '>', 0x333333, () => moveRight=true, () => moveRight=false);
         
-        let graphics = scene.add.graphics();
-        graphics.fillStyle(0x0a0a0a, 0.9);
-        graphics.fillRect(0, barY, screenWidth, barHeight);
-        graphics.lineStyle(4, 0x00ff00);
-        graphics.lineBetween(0, barY, screenWidth, barY);
-        uiContainer.add(graphics);
-
-        const btnY = barY + 60;
+        // Salto (Rojo, Derecha)
+        createBtn(scene, 1150, btnY, 'JUMP', 0xaa0000, () => jump=true, () => jump=false);
         
-        // BOTONES MOVIMIENTO
-        createBtn(scene, 80, btnY, '<', () => moveLeft = true, () => moveLeft = false);
-        createBtn(scene, 200, btnY, '>', () => moveRight = true, () => moveRight = false);
-
-        // BOTÓN SALTO (Derecha)
-        createBtn(scene, screenWidth - 80, btnY, 'JUMP', () => jump = true, () => jump = false, 0x990000);
-
-        // BOTÓN DISPARO (Al lado del salto)
-        // Icono de roca (círculo gris)
-        createBtn(scene, screenWidth - 200, btnY, 'O', () => shoot = true, () => shoot = false, 0x555555);
-        // Texto extra "Shoot"
-        let shootLabel = scene.add.text(screenWidth - 225, btnY - 40, 'SHOOT', {fontSize:'12px', color:'#aaa'});
-        uiContainer.add(shootLabel);
+        // Disparo (Gris, Al lado del salto)
+        createBtn(scene, 950, btnY, 'FIRE', 0x555555, () => shoot=true, () => shoot=false);
     }
 
-    function createBtn(scene, x, y, text, onPress, onRelease, color = 0x333333) {
+    function createBtn(scene, x, y, text, color, downFn, upFn) {
         let btn = scene.add.container(x, y);
-        let circle = scene.add.circle(0, 0, 40, color).setStrokeStyle(2, 0xffffff);
-        let label = scene.add.text(-12, -15, text, { fontSize: '24px', color: '#fff', fontStyle: 'bold' });
-        
-        // Ajuste de texto centrado si es largo
-        if (text.length > 2) label.x = -30;
+        let c = scene.add.circle(0, 0, 50, color).setStrokeStyle(3, 0xffffff);
+        let t = scene.add.text(-20, -15, text, { fontSize: '24px', fontStyle: 'bold' });
+        if(text.length > 1) t.x = -30; // Centrar texto largo
 
-        let hit = scene.add.circle(0, 0, 50, 0x000000, 0).setInteractive();
-        hit.on('pointerdown', () => { onPress(); btn.y += 4; });
-        hit.on('pointerup', () => { onRelease(); btn.y -= 4; });
-        hit.on('pointerout', () => { onRelease(); btn.y -= 4; });
+        let hit = scene.add.circle(0, 0, 60, 0x000000, 0).setInteractive();
+        hit.on('pointerdown', () => { downFn(); btn.y += 5; });
+        hit.on('pointerup', () => { upFn(); btn.y -= 5; });
+        hit.on('pointerout', () => { upFn(); btn.y -= 5; });
 
-        btn.add([circle, label, hit]);
+        btn.add([c, t, hit]);
         uiContainer.add(btn);
     }
 </script>
