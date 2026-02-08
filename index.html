@@ -2,360 +2,271 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Cubo Saltarín - Nivel Simple (Móvil OK)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menú Principal - Jonathan Del Angel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        body {
+        /* --- ESTILOS GENERALES --- */
+        body, html {
             margin: 0;
             padding: 0;
-            background: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
+            width: 100%;
+            height: 100%;
+            background-color: #050505;
+            font-family: 'Orbitron', sans-serif;
+            overflow: hidden; /* Sin scrollbars */
+            color: #fff;
         }
-        #gameCanvas {
-            display: block;
-            max-width: 100vw;
-            max-height: 100vh;
-            width: auto;
-            height: auto;
-            background: #000;
-            border: 2px solid #333;
-            image-rendering: pixelated;
-            image-rendering: -moz-crisp-edges;
-            image-rendering: -webkit-crisp-edges;
-            image-rendering: crisp-edges;
-            touch-action: none;
+
+        /* --- FONDO ANIMADO (Canvas) --- */
+        #bgCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 0;
         }
-        #instructions {
-            position: fixed;
-            top: 10px;
+
+        /* --- CONTENEDOR DEL MENÚ --- */
+        .menu-container {
+            position: absolute;
+            top: 50%;
             left: 50%;
-            transform: translateX(-50%);
-            color: white;
-            font-size: 14px;
+            transform: translate(-50%, -50%);
             text-align: center;
             z-index: 10;
-            background: rgba(0,0,0,0.7);
-            padding: 10px 15px;
-            border-radius: 10px;
-            max-width: 90vw;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            width: 90%;
+            max-width: 600px;
+        }
+
+        /* --- TÍTULO PRINCIPAL --- */
+        h1 {
+            font-size: 4rem;
+            margin-bottom: 10px;
+            color: #0ff; /* Cian Neón */
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            text-shadow: 
+                0 0 10px #0ff, 
+                0 0 20px #0ff, 
+                0 0 40px #009999;
+            animation: pulsate 3s infinite alternate;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #aaa;
+            margin-bottom: 50px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #0ff;
+            display: inline-block;
+            padding-bottom: 10px;
+        }
+
+        /* --- BOTONES DEL MENÚ --- */
+        .btn {
+            display: block;
+            width: 80%;
+            margin: 15px auto;
+            padding: 15px 0;
+            background: transparent;
+            border: 2px solid #0ff;
+            color: #0ff;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%); /* Forma futurista */
+        }
+
+        .btn:hover {
+            background: #0ff;
+            color: #000;
+            box-shadow: 0 0 20px #0ff;
+            transform: scale(1.05);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Estilo diferente para el botón salir/créditos */
+        .btn-secondary {
+            border-color: #ff0055;
+            color: #ff0055;
+        }
+        .btn-secondary:hover {
+            background: #ff0055;
+            color: white;
+            box-shadow: 0 0 20px #ff0055;
+        }
+
+        /* --- CRÉDITOS --- */
+        footer {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            z-index: 10;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .dev-name {
+            color: #ffcc00;
+            font-weight: bold;
+            text-decoration: none;
+            position: relative;
+            padding: 5px 10px;
+            transition: 0.3s;
+        }
+
+        .dev-name::before {
+            content: '{ ';
+            color: #fff;
+        }
+        .dev-name::after {
+            content: ' }';
+            color: #fff;
+        }
+
+        .dev-name:hover {
+            color: #fff;
+            text-shadow: 0 0 10px #ffcc00;
+        }
+
+        /* --- ANIMACIONES --- */
+        @keyframes pulsate {
+            0% { text-shadow: 0 0 10px #0ff, 0 0 20px #0ff; transform: scale(1); }
+            100% { text-shadow: 0 0 20px #0ff, 0 0 40px #0ff, 0 0 80px #0ff; transform: scale(1.02); }
+        }
+
+        /* Ajustes para Móvil */
+        @media (max-width: 600px) {
+            h1 { font-size: 2.5rem; }
+            .btn { font-size: 1.2rem; width: 90%; }
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="400" tabindex="0"></canvas>
-    <div id="instructions">
-        ← → A D: Mover | ESPACIO ↑ W: Saltar | R: Reiniciar<br>
-        <small>En celular: Botones táctiles abajo 👆</small>
+
+    <canvas id="bgCanvas"></canvas>
+
+    <div class="menu-container">
+        <h1>NEON JUMP</h1>
+        <div class="subtitle">Ultimate Platformer</div>
+
+        <button class="btn" onclick="iniciarJuego()">▶ JUGAR</button>
+        
+        <button class="btn" onclick="seleccionarNivel()">NIVELES</button>
+        <button class="btn" onclick="opciones()">SKINS</button>
+        
+        <button class="btn btn-secondary" onclick="window.close()">SALIR</button>
     </div>
+
+    <footer>
+        <p>Desarrollado & Diseñado por</p>
+        <a href="#" class="dev-name">JONATHAN DEL ANGEL</a>
+        <p style="font-size: 0.7rem; color: #555; margin-top: 5px;">v1.0.2 Build 2026</p>
+    </footer>
+
     <script>
-        const canvas = document.getElementById('gameCanvas');
+        // --- 1. LÓGICA DE BOTONES ---
+        function iniciarJuego() {
+            // Efecto de sonido (opcional) o delay
+            document.body.style.transition = "opacity 0.5s";
+            document.body.style.opacity = "0";
+            setTimeout(() => {
+                // AQUÍ REDIRECCIONAS A TU NIVEL 1
+                window.location.href = "nivel1.html"; 
+            }, 500);
+        }
+
+        function seleccionarNivel() {
+            alert("⚠️ Sección de Niveles: Próximamente...");
+            // window.location.href = "seleccionar.html";
+        }
+
+        function opciones() {
+            alert("👕 Tienda de Skins: Próximamente...");
+        }
+
+        // --- 2. ANIMACIÓN DEL FONDO (WARP SPEED) ---
+        const canvas = document.getElementById('bgCanvas');
         const ctx = canvas.getContext('2d');
-        canvas.focus();
+        
+        let width, height;
+        let stars = [];
+        const numStars = 200; // Cantidad de estrellas
 
-        // Detectar móvil/touch
-        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-
-        // Constantes del juego
-        const WIDTH = 800;
-        const HEIGHT = 400;
-        const GROUND = 350;
-        const PLAYER_SIZE = 32;
-        const GRAVITY = 0.8;
-        const JUMP_FORCE = -16;
-        const ACCEL = 0.6;
-        const FRICTION = 0.85;
-        const MAX_SPEED = 6;
-
-        // Estado del jugador
-        const player = {
-            x: 50,
-            y: GROUND - PLAYER_SIZE,
-            width: PLAYER_SIZE,
-            height: PLAYER_SIZE,
-            vx: 0,
-            vy: 0,
-            onGround: true
-        };
-
-        // Obstáculos
-        const obstacles = [
-            { x: 220, width: 40, height: 50 },
-            { x: 380, width: 40, height: 70 },
-            { x: 580, width: 50, height: 40 }
-        ];
-
-        // Puerta
-        const door = { x: 720, width: 40, height: 80 };
-
-        // Inicializar Y
-        obstacles.forEach(obs => { obs.y = GROUND - obs.height; });
-        door.y = GROUND - door.height;
-
-        // Estado del juego
-        let gameWon = false;
-        const keys = {};
-
-        // Touch controls
-        const leftTouches = new Set();
-        const rightTouches = new Set();
-        const jumpTouches = new Set();
-
-        // Detectar teclas
-        document.addEventListener('keydown', (e) => {
-            keys[e.keyCode] = true;
-            e.preventDefault();
-        });
-        document.addEventListener('keyup', (e) => {
-            keys[e.keyCode] = false;
-            e.preventDefault();
-        });
-
-        // Touch events
-        function handleTouch(e) {
-            e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = WIDTH / rect.width;
-            const scaleY = HEIGHT / rect.height;
-
-            const btnY = HEIGHT - 100;
-            const btnSize = 80;
-            const leftRect = { x: 50, y: btnY, w: btnSize, h: btnSize };
-            const rightRect = { x: 50 + btnSize + 10, y: btnY, w: btnSize, h: btnSize };
-            const jumpRect = { x: WIDTH - 50 - btnSize, y: btnY, w: btnSize, h: btnSize };
-
-            for (let touch of e.changedTouches) {
-                const x = (touch.clientX - rect.left) * scaleX;
-                const y = (touch.clientY - rect.top) * scaleY;
-                const id = touch.identifier;
-
-                if (e.type === 'touchstart' || e.type === 'touchmove') {
-                    leftTouches.delete(id);
-                    rightTouches.delete(id);
-                    jumpTouches.delete(id);
-
-                    if (x >= leftRect.x && x < leftRect.x + leftRect.w &&
-                        y >= leftRect.y && y < leftRect.y + leftRect.h) {
-                        leftTouches.add(id);
-                    } else if (x >= rightRect.x && x < rightRect.x + rightRect.w &&
-                               y >= rightRect.y && y < rightRect.y + rightRect.h) {
-                        rightTouches.add(id);
-                    } else if (x >= jumpRect.x && x < jumpRect.x + jumpRect.w &&
-                               y >= jumpRect.y && y < jumpRect.y + jumpRect.h) {
-                        jumpTouches.add(id);
-                    }
-                } else if (e.type === 'touchend' || e.type === 'touchcancel') {
-                    leftTouches.delete(id);
-                    rightTouches.delete(id);
-                    jumpTouches.delete(id);
-                }
-            }
+        // Ajustar al tamaño de la ventana
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            initStars();
         }
 
-        if (isMobile) {
-            canvas.addEventListener('touchstart', handleTouch, { passive: false });
-            canvas.addEventListener('touchmove', handleTouch, { passive: false });
-            canvas.addEventListener('touchend', handleTouch, { passive: false });
-            canvas.addEventListener('touchcancel', handleTouch, { passive: false });
-        }
-
-        // Colisión AABB
-        function rectCollide(r1, r2) {
-            return r1.x < r2.x + r2.width &&
-                   r1.x + r1.width > r2.x &&
-                   r1.y < r2.y + r2.height &&
-                   r1.y + r1.height > r2.y;
-        }
-
-        // Reiniciar
-        function reset() {
-            player.x = 50;
-            player.y = GROUND - PLAYER_SIZE;
-            player.vx = 0;
-            player.vy = 0;
-            player.onGround = true;
-            gameWon = false;
-        }
-
-        // Actualizar
-        function update() {
-            if (gameWon) {
-                if (keys[82]) { // R
-                    reset();
-                }
-                return;
+        // Clase Estrella
+        class Star {
+            constructor() {
+                this.x = Math.random() * width - width / 2;
+                this.y = Math.random() * height - height / 2;
+                this.z = Math.random() * width; // Profundidad
             }
 
-            // Input unificado
-            const leftPressed = leftTouches.size > 0 || keys[37] || keys[65];
-            const rightPressed = rightTouches.size > 0 || keys[39] || keys[68];
-            const jumpPressed = jumpTouches.size > 0 || keys[32] || keys[38] || keys[87];
-
-            if (leftPressed) player.vx -= ACCEL;
-            if (rightPressed) player.vx += ACCEL;
-            if (jumpPressed && player.onGround) {
-                player.vy = JUMP_FORCE;
-                player.onGround = false;
-            }
-
-            // Fricción y límite
-            player.vx *= FRICTION;
-            player.vx = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, player.vx));
-
-            // Horizontal + colisiones laterales
-            player.x += player.vx;
-            if (player.x < 0) player.x = 0;
-            if (player.x > WIDTH - PLAYER_SIZE) player.x = WIDTH - PLAYER_SIZE;
-
-            for (let obs of obstacles) {
-                if (rectCollide(player, obs)) {
-                    if (player.vx > 0) player.x = obs.x - player.width;
-                    else if (player.vx < 0) player.x = obs.x + obs.width;
-                    player.vx = 0;
+            update() {
+                // Velocidad de movimiento hacia la pantalla
+                this.z -= 10; 
+                if (this.z <= 0) {
+                    this.z = width;
+                    this.x = Math.random() * width - width / 2;
+                    this.y = Math.random() * height - height / 2;
                 }
             }
 
-            // Vertical + gravedad
-            player.vy += GRAVITY;
-            player.y += player.vy;
-            player.onGround = false;
+            draw() {
+                // Matemáticas para proyección 3D simple
+                let x = (this.x / this.z) * width + width / 2;
+                let y = (this.y / this.z) * height + height / 2;
+                
+                // El tamaño crece mientras más cerca está
+                let radius = (width - this.z) / width * 3;
 
-            // Suelo
-            if (player.y >= GROUND - player.height) {
-                player.y = GROUND - player.height;
-                player.vy = 0;
-                player.onGround = true;
-            } else {
-                // Obstáculos
-                for (let obs of obstacles) {
-                    if (rectCollide(player, obs)) {
-                        if (player.vy > 0) {
-                            player.y = obs.y - player.height;
-                            player.vy = 0;
-                            player.onGround = true;
-                            break;
-                        } else {
-                            player.vy = 0;
-                        }
-                    }
-                }
-            }
-
-            // Victoria
-            if (rectCollide(player, door)) {
-                gameWon = true;
-            }
-        }
-
-        // Dibujar
-        function draw() {
-            // Fondo
-            const grad = ctx.createLinearGradient(0, 0, 0, HEIGHT);
-            grad.addColorStop(0, '#87CEEB');
-            grad.addColorStop(1, '#98D8E9');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, WIDTH, HEIGHT);
-
-            // Suelo
-            ctx.fillStyle = '#8B4513';
-            ctx.fillRect(0, GROUND, WIDTH, HEIGHT - GROUND);
-
-            // Obstáculos
-            ctx.fillStyle = '#666';
-            obstacles.forEach(obs => {
-                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-                ctx.strokeStyle = '#444';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
-            });
-
-            // Puerta
-            ctx.fillStyle = '#FFD700';
-            ctx.fillRect(door.x, door.y, door.width, door.height);
-            ctx.fillStyle = '#8B4513';
-            ctx.fillRect(door.x + 8, door.y + 15, 24, 50);
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(door.x, door.y, door.width, door.height);
-
-            // Jugador
-            ctx.fillStyle = '#FF6B35';
-            ctx.fillRect(player.x, player.y, player.width, player.height);
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(player.x, player.y, player.width, player.height);
-
-            // Botones táctiles (solo móvil)
-            if (isMobile) {
-                const btnY = HEIGHT - 100;
-                const btnSize = 80;
-                ctx.lineWidth = 4;
-                ctx.strokeStyle = '#000';
-                ctx.font = 'bold 40px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-
-                // Izquierda
-                ctx.fillStyle = leftTouches.size > 0 ? '#FF4444' : 'rgba(255, 100, 100, 0.8)';
-                ctx.fillRect(50, btnY, btnSize, btnSize);
-                ctx.strokeRect(50, btnY, btnSize, btnSize);
-                ctx.fillStyle = 'white';
-                ctx.fillText('←', 50 + btnSize / 2, btnY + btnSize / 2);
-
-                // Derecha
-                const rightX = 50 + btnSize + 10;
-                ctx.fillStyle = rightTouches.size > 0 ? '#44FF44' : 'rgba(100, 255, 100, 0.8)';
-                ctx.fillRect(rightX, btnY, btnSize, btnSize);
-                ctx.strokeRect(rightX, btnY, btnSize, btnSize);
-                ctx.fillStyle = 'white';
-                ctx.fillText('→', rightX + btnSize / 2, btnY + btnSize / 2);
-
-                // Salto (círculo)
-                const jumpX = WIDTH - 50 - btnSize;
-                ctx.fillStyle = jumpTouches.size > 0 ? '#4444FF' : 'rgba(100, 100, 255, 0.8)';
                 ctx.beginPath();
-                ctx.arc(jumpX + btnSize / 2, btnY + btnSize / 2, btnSize / 2, 0, Math.PI * 2);
+                ctx.fillStyle = "white";
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.stroke();
-                ctx.fillStyle = 'white';
-                ctx.fillText('↑', jumpX + btnSize / 2, btnY + btnSize / 2);
-
-                ctx.textAlign = 'left';
-            }
-
-            // Victoria
-            if (gameWon) {
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                ctx.fillRect(0, 0, WIDTH, HEIGHT);
-                ctx.fillStyle = '#FFD700';
-                ctx.font = 'bold 64px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('¡Ganaste!', WIDTH / 2, HEIGHT / 2 - 20);
-                ctx.font = 'bold 32px Arial';
-                ctx.fillStyle = 'white';
-                ctx.fillText('Presiona R para reiniciar', WIDTH / 2, HEIGHT / 2 + 50);
-                ctx.textAlign = 'left';
             }
         }
 
-        // Bucle
-        function gameLoop() {
-            update();
-            draw();
-            requestAnimationFrame(gameLoop);
+        function initStars() {
+            stars = [];
+            for (let i = 0; i < numStars; i++) {
+                stars.push(new Star());
+            }
         }
 
-        // Resize (mantiene aspecto)
-        window.addEventListener('resize', () => {
-            // El CSS maneja el escalado automáticamente
-        });
+        function animate() {
+            // Fondo negro con un ligero rastro (trail effect)
+            ctx.fillStyle = "rgba(5, 5, 5, 0.4)"; 
+            ctx.fillRect(0, 0, width, height);
 
-        gameLoop();
+            for (let star of stars) {
+                star.update();
+                star.draw();
+            }
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+        animate();
     </script>
 </body>
 </html>
