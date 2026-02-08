@@ -177,22 +177,24 @@
     <script>
         // --- 1. LÓGICA DE BOTONES ---
         function iniciarJuego() {
-            // Efecto de sonido (opcional) o delay
+            // Animación de salida
             document.body.style.transition = "opacity 0.5s";
             document.body.style.opacity = "0";
+            
             setTimeout(() => {
-                // AQUÍ REDIRECCIONAS A TU NIVEL 1
-                window.location.href = "nivel1.html"; 
+                // AHORA SÍ: Te manda a la pantalla de selección
+                window.location.href = "seleccionar.html"; 
             }, 500);
         }
 
         function seleccionarNivel() {
-            alert("⚠️ Sección de Niveles: Próximamente...");
-            // window.location.href = "seleccionar.html";
+            // También te manda a seleccionar
+            window.location.href = "seleccionar.html";
         }
 
         function opciones() {
-            alert("👕 Tienda de Skins: Próximamente...");
+            // También te manda a seleccionar (porque ahí están las skins)
+            window.location.href = "seleccionar.html";
         }
 
         // --- 2. ANIMACIÓN DEL FONDO (WARP SPEED) ---
