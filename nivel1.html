@@ -76,9 +76,16 @@
         g.lineStyle(2, 0xffffff, 1); g.strokeRect(0, 0, 32, 32); // Borde blanco
         g.generateTexture('groundTex', 32, 32);
 
-        // Personaje (Cuadrado Cyan)
-        g.clear(); g.fillStyle(0x00ffff, 1); g.fillRect(0, 0, 30, 45);
+        // --- AQUÍ ESTÁ LA MAGIA DE LA SKIN ---
+        // 1. Leemos el color guardado en el menú (o usamos Cyan por defecto)
+        let savedColor = localStorage.getItem('skinColor') || '0x00ffff';
+        // 2. Convertimos el texto a número hexadecimal real
+        let playerColor = parseInt(savedColor, 16);
+
+        // Personaje (Usando el color elegido)
+        g.clear(); g.fillStyle(playerColor, 1); g.fillRect(0, 0, 30, 45);
         g.generateTexture('dudeTex', 30, 45);
+        // -------------------------------------
 
         // Fantasma (Círculo Blanco)
         g.clear(); g.fillStyle(0xffffff, 0.9); g.fillCircle(15, 15, 15);
@@ -346,4 +353,3 @@
 
 </body>
 </html>
-
