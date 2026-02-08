@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seleccionar Personaje y Nivel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050505;
+            color: #fff;
+            font-family: 'Orbitron', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            background-image: 
+                linear-gradient(rgba(0, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px; /* Efecto Grid Retro */
+        }
+
+        h1 {
+            color: #0ff;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px #0ff;
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 40px;
+            width: 90%;
+            max-width: 900px;
+        }
+
+        /* --- SECCIONES (Cajas) --- */
+        .section-box {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #333;
+            border-radius: 15px;
+            padding: 20px;
+            width: 300px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
+        }
+
+        h2 {
+            color: #ff0055;
+            border-bottom: 1px solid #ff0055;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+
+        /* --- GRID DE SKINS --- */
+        .skins-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .skin-card {
+            border: 2px solid #555;
+            border-radius: 10px;
+            padding: 10px;
+            cursor: pointer;
+            transition: 0.3s;
+            background: #111;
+        }
+
+        .skin-card:hover {
+            border-color: #fff;
+            transform: translateY(-5px);
+        }
+
+        .skin-card.selected {
+            border-color: #00ff00;
+            box-shadow: 0 0 15px #00ff00;
+            background: #002200;
+        }
+
+        .skin-preview {
+            width: 60px;
+            height: 90px;
+            margin: 0 auto;
+            display: block;
+        }
+
+        /* --- LISTA DE NIVELES --- */
+        .level-btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            background: linear-gradient(90deg, #111, #222);
+            border: 1px solid #0ff;
+            color: #fff;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            cursor: pointer;
+            text-align: left;
+            padding-left: 20px;
+            transition: 0.3s;
+            position: relative;
+        }
+
+        .level-btn:hover {
+            background: #0ff;
+            color: #000;
+            padding-left: 30px; /* Efecto deslizamiento */
+        }
+
+        .level-btn.locked {
+            border-color: #555;
+            color: #555;
+            cursor: not-allowed;
+            background: #111;
+        }
+        
+        .level-btn.locked:hover {
+            padding-left: 20px;
+            background: #111;
+            color: #555;
+        }
+
+        .icon { float: right; margin-right: 10px; }
+
+        /* --- BOTÓN VOLVER --- */
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: transparent;
+            border: none;
+            color: #aaa;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        .back-btn:hover { color: #fff; }
+
+    </style>
+</head>
+<body>
+
+    <button class="back-btn" onclick="window.location.href='index.html'">← VOLVER AL MENÚ</button>
+
+    <h1>CONFIGURAR MISIÓN</h1>
+
+    <div class="container">
+        
+        <div class="section-box">
+            <h2>AGENTE (SKIN)</h2>
+            <div class="skins-grid">
+                <div class="skin-card selected" onclick="seleccionarSkin('cyan', this)">
+                    <canvas id="canvas1" width="60" height="90" class="skin-preview"></canvas>
+                    <p>NEON BLUE</p>
+                </div>
+
+                <div class="skin-card" onclick="seleccionarSkin('ninja', this)">
+                    <canvas id="canvas2" width="60" height="90" class="skin-preview"></canvas>
+                    <p>SHADOW</p>
+                </div>
+
+                <div class="skin-card" onclick="seleccionarSkin('red', this)">
+                    <canvas id="canvas3" width="60" height="90" class="skin-preview"></canvas>
+                    <p>CRIMSON</p>
+                </div>
+
+                <div class="skin-card" onclick="seleccionarSkin('gold', this)">
+                    <canvas id="canvas4" width="60" height="90" class="skin-preview"></canvas>
+                    <p>GOLDEN</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-box">
+            <h2>OBJETIVO (NIVEL)</h2>
+            
+            <button class="level-btn" onclick="jugar(1)">
+                01. EL BOSQUE <span class="icon">▶</span>
+            </button>
+            
+            <button class="level-btn locked" onclick="alertaBloqueado()">
+                02. LA CUEVA <span class="icon">🔒</span>
+            </button>
+
+            <button class="level-btn locked" onclick="alertaBloqueado()">
+                03. EL VOLCÁN <span class="icon">🔒</span>
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- 1. DIBUJAR LAS SKINS EN LOS CANVAS PEQUEÑOS ---
+        // Esto asegura que la skin se vea IGUAL que en el juego real
+        
+        function drawDude(canvasId, colorHex) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // Cuerpo
+            ctx.fillStyle = colorHex;
+            ctx.fillRect(10, 10, 40, 60);
+            
+            // Visor / Ojos
+            ctx.fillStyle = '#000';
+            ctx.fillRect(15, 20, 30, 10);
+            
+            // Brillo visor
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(35, 22, 5, 5);
+        }
+
+        // Dibujamos las 4 opciones al cargar
+        drawDude('canvas1', '#00ffff'); // Cyan
+        drawDude('canvas2', '#333333'); // Gris Oscuro (Ninja)
+        drawDude('canvas3', '#ff0000'); // Rojo
+        drawDude('canvas4', '#ffd700'); // Dorado
+
+        // --- 2. SISTEMA DE SELECCIÓN ---
+        
+        function seleccionarSkin(tipo, elemento) {
+            // 1. Quitar clase 'selected' a todos
+            document.querySelectorAll('.skin-card').forEach(card => card.classList.remove('selected'));
+            
+            // 2. Poner clase 'selected' al clickeado
+            elemento.classList.add('selected');
+
+            // 3. GUARDAR EN MEMORIA (LocalStorage)
+            // Guardamos el color hexadecimal correspondiente
+            let colorFinal = '0x00ffff'; // Default
+            
+            if(tipo === 'cyan') colorFinal = '0x00ffff';
+            if(tipo === 'ninja') colorFinal = '0x333333';
+            if(tipo === 'red') colorFinal = '0xff0000';
+            if(tipo === 'gold') colorFinal = '0xffd700';
+
+            localStorage.setItem('skinColor', colorFinal);
+            
+            // Pequeña animación de confirmación
+            elemento.style.transform = "scale(0.9)";
+            setTimeout(() => elemento.style.transform = "scale(1)", 100);
+        }
+
+        // --- 3. SISTEMA DE NIVELES ---
+
+        function jugar(nivel) {
+            if (nivel === 1) {
+                // Verificar si ya eligió skin, si no, poner default
+                if(!localStorage.getItem('skinColor')) {
+                    localStorage.setItem('skinColor', '0x00ffff');
+                }
+                window.location.href = 'nivel1.html';
+            }
+        }
+
+        function alertaBloqueado() {
+            alert("⚠️ ACCESO DENEGADO ⚠️\nCompleta el nivel anterior para desbloquear esta zona.");
+        }
+
+        // Al cargar la página, marcar la skin que ya estaba guardada (si existe)
+        const skinGuardada = localStorage.getItem('skinColor');
+        if(skinGuardada) {
+            // Lógica simple para resaltar la correcta al volver al menú
+            // (Opcional: podrías hacerlo más complejo, pero con que guarde basta)
+        }
+
+    </script>
+</body>
+</html>
+
