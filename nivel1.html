@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nivel 1 - Laberinto Neón</title>
+    <title>Nivel 1 - Vertical</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
     <style>
         body { margin: 0; background-color: #000; overflow: hidden; touch-action: none; }
@@ -15,9 +15,10 @@
 <script>
     const config = {
         type: Phaser.AUTO,
-        width: 800,
-        height: 600,
-        backgroundColor: '#000',
+        // CAMBIO: Resolución VERTICAL para llenar la pantalla del celular
+        width: 360,
+        height: 640,
+        backgroundColor: '#111',
         scale: {
             mode: Phaser.Scale.FIT,
             autoCenter: Phaser.Scale.CENTER_BOTH
@@ -26,7 +27,7 @@
         physics: {
             default: 'arcade',
             arcade: {
-                gravity: { y: 1200 },
+                gravity: { y: 1000 },
                 debug: false
             }
         },
@@ -52,90 +53,126 @@
 
     const game = new Phaser.Game(config);
 
-    function preload() { }
+    function preload() {
+        // --- CARGA DE IMÁGENES (Desde carpeta 'fotos') ---
+        // Asegúrate de que los nombres coincidan exactamente con tus archivos
+        this.load.image('bloque', 'fotos/bloque.png');
+        this.load.image('suelo', 'fotos/suelo.png');
+        this.load.image('puerta', 'fotos/puerta.png');
+        this.load.image('llave', 'fotos/llave.png');
+        // Si no tienes imagen de pincho, usaremos un gráfico generado abajo
+    }
 
     function create() {
-        // --- 1. GENERADOR DE TEXTURAS ---
+        // Generador de gráficos de respaldo (por si faltan imágenes o para pinchos)
         let g = this.make.graphics({x:0, y:0, add: false});
 
-        // Suelo/Paredes (Azul Neón)
-        g.lineStyle(2, 0x00ffff, 1); g.strokeRect(0, 0, 32, 32);
-        g.generateTexture('wallTex', 32, 32);
-
-        // Personaje (Color Variable)
-        let savedColor = localStorage.getItem('skinColor') || '0x00ffff';
-        let playerColor = parseInt(savedColor, 16);
-        g.clear(); g.fillStyle(playerColor, 1); g.fillRect(0, 0, 26, 40); // Más delgado para laberintos
-        g.generateTexture('dudeTex', 26, 40);
-
-        // Pincho (Rojo)
+        // Pincho (Triángulo Rojo)
         g.clear(); g.fillStyle(0xff0000, 1);
         g.beginPath(); g.moveTo(0, 32); g.lineTo(16, 0); g.lineTo(32, 32); g.closePath(); g.fillPath();
         g.generateTexture('spikeTex', 32, 32);
 
-        // Llave (Dorada)
-        g.clear(); g.fillStyle(0xffd700, 1); g.fillCircle(12, 12, 12);
-        g.generateTexture('keyTex', 24, 24);
+        // Personaje (Color Variable del Menú)
+        let savedColor = localStorage.getItem('skinColor') || '0x00ffff';
+        let playerColor = parseInt(savedColor, 16);
+        g.clear(); g.fillStyle(playerColor, 1); g.fillRect(0, 0, 24, 36); 
+        g.generateTexture('dudeTex', 24, 36);
 
-        // --- 2. LÍMITES DEL MUNDO (PANTALLA FIJA) ---
-        // El juego es de 800x500. Los 100px de abajo son para botones.
-        this.physics.world.setBounds(0, 0, 800, 500); 
+        // --- 1. LÍMITES Y FONDO ---
+        // El juego usa 640px de alto.
+        // Zona de juego: 0 a 540px.
+        // Zona de botones (negra): 540px a 640px.
+        this.physics.world.setBounds(0, 0, 360, 540); 
 
-        // --- 3. DISEÑO DEL NIVEL (LABERINTO) ---
+        // --- 2. DISEÑO DEL NIVEL (VERTICAL) ---
         platforms = this.physics.add.staticGroup();
         spikes = this.physics.add.staticGroup();
 
-        // MARCO EXTERIOR (Paredes y Techo)
-        createBlock(400, 508, 25, 1); // Suelo base
-        createBlock(10, 250, 1, 16);  // Pared Izq
-        createBlock(790, 250, 1, 16); // Pared Der
-        createBlock(400, 10, 25, 1);  // Techo
+        // SUELO BASE (Imagen única estirada)
+        // Ajustamos la posición Y para que esté justo encima de los botones
+        let suelo = platforms.create(180, 530, 'suelo'); 
+        suelo.displayWidth = 360; // Ancho total de pantalla
+        suelo.displayHeight = 40; // Altura del suelo
+        suelo.refreshBody();
 
-        // PISOS DEL LABERINTO (De abajo hacia arriba)
+        // PAREDES INVISIBLES (Para que no se salga por los lados)
+        // Izquierda
+        let wallL = platforms.create(-10, 270, null);
+        wallL.displayWidth = 20; wallL.displayHeight = 540; wallL.refreshBody();
+        // Derecha
+        let wallR = platforms.create(370, 270, null);
+        wallR.displayWidth = 20; wallR.displayHeight = 540; wallR.refreshBody();
+        // Techo
+        let wallT = platforms.create(180, -10, null);
+        wallT.displayWidth = 360; wallT.displayHeight = 20; wallT.refreshBody();
+
+
+        // --- PLATAFORMAS DE BLOQUES ---
+        // Función: createTilePlatform(x, y, cantidad_bloques)
         
-        // Piso 1: Salto básico
-        createBlock(200, 400, 8, 1);
-        createBlock(600, 400, 8, 1);
+        // Piso 1
+        createTilePlatform(this, 100, 430, 3); // Izquierda
+        createTilePlatform(this, 260, 430, 3); // Derecha
 
-        // Piso 2: El centro peligroso
-        createBlock(400, 300, 10, 1);
-        spikes.create(400, 284, 'spikeTex'); // Trampa en medio
+        // Piso 2 (Centro con trampa)
+        createTilePlatform(this, 180, 330, 4);
+        spikes.create(180, 314, 'spikeTex');
 
-        // Piso 3: Plataformas laterales altas
-        createBlock(100, 200, 6, 1);
-        createBlock(700, 200, 6, 1);
+        // Piso 3
+        createTilePlatform(this, 80, 230, 3);
+        createTilePlatform(this, 280, 230, 3);
 
-        // Piso 4: La cima (Meta)
-        createBlock(400, 120, 12, 1); 
+        // Piso 4 (Meta)
+        createTilePlatform(this, 180, 130, 5);
 
-        // --- 4. OBJETIVOS ---
+
+        // --- 3. OBJETIVOS ---
         
-        // LLAVE: Esquina superior izquierda (difícil de llegar)
-        keyItem = this.physics.add.sprite(80, 160, 'keyTex');
+        // LLAVE (Ahora con física estática para que no caiga)
+        // La ponemos en una plataforma alta (ej: Piso 3 izq)
+        keyItem = this.physics.add.image(80, 200, 'llave');
+        keyItem.body.allowGravity = false; // ¡CORRECCIÓN! Ya no se cae
+        // Efecto flotante suave
+        this.tweens.add({
+            targets: keyItem,
+            y: keyItem.y - 10,
+            duration: 1000,
+            yoyo: true,
+            repeat: -1
+        });
         
-        // PUERTA: Centro arriba (cerrada)
-        door = this.add.rectangle(400, 80, 40, 60, 0x333333); // Gris
-        this.physics.add.existing(door, true);
-
-        // JUGADOR: Empieza abajo al centro
-        player = this.physics.add.sprite(400, 450, 'dudeTex');
+        // PUERTA (Imagen 'puerta.png')
+        // La ponemos en la cima
+        door = this.physics.add.staticImage(180, 95, 'puerta');
+        
+        // JUGADOR
+        player = this.physics.add.sprite(180, 480, 'dudeTex');
         player.setBounce(0.1);
         player.setCollideWorldBounds(true);
 
-        // --- 5. COLISIONES ---
+        // --- 4. COLISIONES ---
         this.physics.add.collider(player, platforms);
         
         this.physics.add.overlap(player, spikes, takeDamage, null, this);
         this.physics.add.overlap(player, keyItem, collectKey, null, this);
         this.physics.add.overlap(player, door, enterDoor, null, this);
 
-        // --- 6. CONTROLES ---
+        // --- 5. CONTROLES ---
         cursors = this.input.keyboard.createCursorKeys();
         createInterface(this);
     }
 
-    function createBlock(x, y, scaleX, scaleY) {
-        platforms.create(x, y, 'wallTex').setScale(scaleX, scaleY).refreshBody();
+    // --- FUNCIÓN PARA CREAR PLATAFORMAS CON BLOQUES REPETIDOS ---
+    function createTilePlatform(scene, x, y, numBlocks) {
+        // Tamaño del bloque (ajusta según tu imagen, ej: 32px)
+        const blockSize = 32; 
+        
+        // Calculamos el inicio para centrar la plataforma en X
+        let startX = x - ((numBlocks * blockSize) / 2) + (blockSize / 2);
+
+        for (let i = 0; i < numBlocks; i++) {
+            platforms.create(startX + (i * blockSize), y, 'bloque');
+        }
     }
 
     function update() {
@@ -148,13 +185,13 @@
         const isJump = jump || cursors.up.isDown || cursors.space.isDown;
 
         if (isLeft) {
-            player.setVelocityX(-250);
+            player.setVelocityX(-200);
         } else if (isRight) {
-            player.setVelocityX(250);
+            player.setVelocityX(200);
         }
 
         if (isJump && (player.body.touching.down || player.body.blocked.down)) {
-            player.setVelocityY(-600);
+            player.setVelocityY(-550);
             jump = false; 
         }
 
@@ -165,7 +202,7 @@
         lives--;
         player.setTint(0xff0000);
         player.setVelocityY(-300);
-        player.x = 400; player.y = 450; // Reset al inicio
+        player.x = 180; player.y = 480; // Reset
         
         this.time.delayedCall(500, () => player.clearTint());
 
@@ -177,8 +214,8 @@
     function collectKey(player, key) {
         key.disableBody(true, true);
         hasKey = true;
-        door.fillColor = 0xffd700; // Puerta dorada
-        txtInfo.setText("¡TIENES LA LLAVE!");
+        door.setTint(0x00ff00); // Se pone verde
+        txtInfo.setText("¡VE A LA PUERTA!");
     }
 
     function enterDoor() {
@@ -186,7 +223,7 @@
             gameOver("🏆 ¡NIVEL COMPLETADO!");
             // window.location.href = "nivel2.html";
         } else {
-            txtInfo.setText("🔒 FALTA LA LLAVE");
+            txtInfo.setText("🔒 FALTA LLAVE");
         }
     }
 
@@ -197,47 +234,47 @@
         location.reload();
     }
 
-    // --- INTERFAZ SIMPLIFICADA (SOLO MOVIMIENTO Y SALTO) ---
+    // --- INTERFAZ VERTICAL (AJUSTADA A 360px DE ANCHO) ---
     function createInterface(scene) {
         uiContainer = scene.add.container(0, 0).setScrollFactor(0).setDepth(9999);
 
         // Barra Info
         let topBar = scene.add.graphics();
         topBar.fillStyle(0x000000, 0.7);
-        topBar.fillRect(0, 0, 800, 40);
+        topBar.fillRect(0, 0, 360, 30);
         uiContainer.add(topBar);
 
-        txtLives = scene.add.text(20, 10, 'VIDAS: 3', { fontSize: '20px', color: '#ff4444', fontStyle: 'bold' });
-        txtInfo = scene.add.text(300, 10, 'BUSCA LA LLAVE', { fontSize: '18px', color: '#ffff00' });
+        txtLives = scene.add.text(10, 5, 'VIDAS: 3', { fontSize: '16px', color: '#ff4444', fontStyle: 'bold' });
+        txtInfo = scene.add.text(150, 5, 'BUSCA LA LLAVE', { fontSize: '14px', color: '#ffff00' });
         uiContainer.add([txtLives, txtInfo]);
 
-        // Zona Botones
+        // Zona Botones (Abajo)
         let bottomBar = scene.add.graphics();
         bottomBar.fillStyle(0x111111, 1);
-        bottomBar.fillRect(0, 500, 800, 100);
-        bottomBar.lineStyle(4, 0x00ff00);
-        bottomBar.lineBetween(0, 500, 800, 500);
+        bottomBar.fillRect(0, 540, 360, 100);
+        bottomBar.lineStyle(2, 0x00ff00);
+        bottomBar.lineBetween(0, 540, 360, 540);
         uiContainer.add(bottomBar);
 
-        const btnY = 550; 
+        const btnY = 590; 
 
-        // Izquierda / Derecha
-        let btnL = createBtn(scene, 120, btnY, '<', 0x333333, () => moveLeft=true, () => moveLeft=false);
-        let btnR = createBtn(scene, 250, btnY, '>', 0x333333, () => moveRight=true, () => moveRight=false);
+        // Botones más compactos para pantalla vertical
+        let btnL = createBtn(scene, 60, btnY, '<', 0x333333, () => moveLeft=true, () => moveLeft=false);
+        let btnR = createBtn(scene, 140, btnY, '>', 0x333333, () => moveRight=true, () => moveRight=false);
         
-        // SOLO SALTO (Botón Gigante a la derecha)
-        let btnJ = createBtn(scene, 650, btnY, 'SALTAR', 0xaa0000, () => jump=true, () => jump=false, 60);
+        let btnJ = createBtn(scene, 290, btnY, 'JUMP', 0xaa0000, () => jump=true, () => jump=false, 40);
 
         uiContainer.add([btnL, btnR, btnJ]);
     }
 
-    function createBtn(scene, x, y, text, color, downFn, upFn, radius = 45) {
+    function createBtn(scene, x, y, text, color, downFn, upFn, radius = 35) {
         let btn = scene.add.container(x, y);
         let circle = scene.add.circle(0, 0, radius, color).setStrokeStyle(2, 0xffffff);
-        let label = scene.add.text(-20, -15, text, { fontSize: '20px', fontStyle: 'bold' });
-        if(text.length > 2) label.x = -35; 
+        let fontSize = text.length > 2 ? '14px' : '20px';
+        let label = scene.add.text(-10, -10, text, { fontSize: fontSize, fontStyle: 'bold' });
+        if(text.length > 2) label.x = -18; 
         
-        let hit = scene.add.circle(0, 0, radius + 15, 0x000000, 0).setInteractive();
+        let hit = scene.add.circle(0, 0, radius + 10, 0x000000, 0).setInteractive();
         hit.on('pointerdown', () => { downFn(); btn.y += 4; });
         hit.on('pointerup', () => { upFn(); btn.y -= 4; });
         hit.on('pointerout', () => { upFn(); btn.y -= 4; });
