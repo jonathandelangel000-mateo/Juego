@@ -3,322 +3,185 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Cubo Saltarín - Menú Principal</title>
+    <title>Cubo Saltarín - Estilo Fireboy</title>
     <style>
+        * { margin: 0; padding: 0; }
         body {
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(to bottom, #87CEEB, #98D8E9);
+            background: #000;
             overflow: hidden;
             font-family: Arial, sans-serif;
-            color: white;
-            user-select: none;
+            touch-action: none;
+            -webkit-touch-callout: none;
             -webkit-user-select: none;
-            touch-action: manipulation;
+            user-select: none;
         }
-        .screen {
-            position: fixed;
-            top: 0;
-            left: 0;
+        canvas {
+            display: block;
             width: 100vw;
             height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background: linear-gradient(to bottom, #87CEEB, #98D8E9);
-        }
-        #gameCanvas {
-            display: none;
-            max-width: 100vw;
-            max-height: 100vh;
-            width: auto;
-            height: auto;
-            background: #000;
-            border: 2px solid #333;
             image-rendering: pixelated;
             image-rendering: -moz-crisp-edges;
-            image-rendering: -webkit-crisp-edges;
             image-rendering: crisp-edges;
-        }
-        h1 {
-            font-size: clamp(32px, 8vw, 64px);
-            margin: 0 0 40px 0;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            text-align: center;
-        }
-        h2 {
-            font-size: clamp(24px, 6vw, 48px);
-            margin: 0 0 30px 0;
-            text-align: center;
-        }
-        button {
-            background: linear-gradient(145deg, #FF6B35, #FF8C42);
-            color: white;
-            border: none;
-            border-radius: 15px;
-            padding: clamp(20px, 5vw, 30px) clamp(40px, 10vw, 60px);
-            font-size: clamp(20px, 5vw, 28px);
-            font-weight: bold;
-            margin: 15px;
-            min-height: 80px;
-            min-width: 220px;
-            cursor: pointer;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-            transition: all 0.2s ease;
-            touch-action: manipulation;
-        }
-        button:hover, button:active {
-            transform: scale(1.05);
-            background: linear-gradient(145deg, #FF8C42, #FF6B35);
-            box-shadow: 0 12px 25px rgba(0,0,0,0.4);
-        }
-        #backMenu {
-            background: linear-gradient(145deg, #666, #888);
-            min-height: 70px;
-            min-width: 180px;
-            font-size: clamp(18px, 4.5vw, 24px);
-        }
-        #credits {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: clamp(14px, 3vw, 18px);
-            color: #FFD700;
-            text-align: center;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
-            z-index: 100;
-            font-style: italic;
-        }
-        @media (orientation: landscape) {
-            h1 { margin-bottom: 5vh; }
-            button { margin: 2vh; padding: 4vh 8vw; }
-            #backMenu { padding: 3vh 6vw; }
         }
     </style>
 </head>
 <body>
-    <div id="menu" class="screen">
-        <h1>🎮 Cubo Saltarín 🎮</h1>
-        <button id="startBtn">Iniciar Juego</button>
-        <button id="levelsBtn">Ver Niveles</button>
-    </div>
-    <div id="levelsScreen" class="screen" style="display: none;">
-        <h2>Niveles Disponibles</h2>
-        <button id="level1Btn">Nivel 1<br><small>Simple</small></button>
-        <button id="backMenu">← Volver al Menú</button>
-    </div>
-    <canvas id="gameCanvas" width="800" height="400" tabindex="0"></canvas>
-    <div id="credits">- Desarrollado por Jonathan Del Angel -</div>
-
+    <canvas id="gameCanvas"></canvas>
     <script>
-        // Elementos DOM
-        const menu = document.getElementById('menu');
-        const levelsScreen = document.getElementById('levelsScreen');
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const startBtn = document.getElementById('startBtn');
-        const levelsBtn = document.getElementById('levelsBtn');
-        const level1Btn = document.getElementById('level1Btn');
-        const backMenu = document.getElementById('backMenu');
 
-        // Detectar móvil
-        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        // Soporte retina
+        let dpr = window.devicePixelRatio || 1;
 
-        // Constantes del juego
-        let WIDTH = 800;
-        let HEIGHT = 400;
-        const ASPECT = 2; // 800/400
-        const GROUND = 350;
-        const PLAYER_SIZE = 32;
-        const GRAVITY = 0.8;
-        const JUMP_FORCE = -16;
-        const ACCEL = 0.6;
-        const FRICTION = 0.85;
-        const MAX_SPEED = 6;
-
-        // Estado del juego
-        let gameActive = false;
+        // Variables globales
+        let WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, GROUND, PLAYER_SIZE;
+        let GRAVITY, JUMP_FORCE, ACCEL, FRICTION, MAX_SPEED;
+        let camX = 0, camTarget = 0;
         let gameWon = false;
+        let gemsCollected = 0;
+        let totalGems = 3;
+
+        // Estado jugador
         const player = {
-            x: 50, y: GROUND - PLAYER_SIZE, width: PLAYER_SIZE, height: PLAYER_SIZE,
-            vx: 0, vy: 0, onGround: true
+            x: 0, y: 0, width: 0, height: 0,
+            vx: 0, vy: 0, onGround: false
         };
-        const obstacles = [
-            { x: 220, width: 40, height: 50 },
-            { x: 380, width: 40, height: 70 },
-            { x: 580, width: 50, height: 40 }
-        ];
-        const door = { x: 720, width: 40, height: 80 };
-        obstacles.forEach(obs => { obs.y = GROUND - obs.height; });
-        door.y = GROUND - door.height;
+
+        // Arrays
+        let platforms = [];
+        let hazards = [];
+        let gems = [];
+        let particles = [];
+
+        // Controles
         const keys = {};
         const leftTouches = new Set();
         const rightTouches = new Set();
         const jumpTouches = new Set();
 
-        // Funciones de navegación
-        function startGame() {
-            menu.style.display = 'none';
-            levelsScreen.style.display = 'none';
-            canvas.style.display = 'block';
-            canvas.focus();
-            gameActive = true;
-            reset();
+        // Inicializar escala y mundo
+        function resize() {
+            const rect = canvas.getBoundingClientRect();
+            WIDTH = rect.width;
+            HEIGHT = rect.height;
+            canvas.width = WIDTH * dpr;
+            canvas.height = HEIGHT * dpr;
+            ctx.scale(dpr, dpr);
+
+            WORLD_WIDTH = Math.max(1800, WIDTH * 2.2);
+            WORLD_HEIGHT = HEIGHT;
+            GROUND = WORLD_HEIGHT * 0.86;
+            PLAYER_SIZE = Math.min(WIDTH * 0.045, HEIGHT * 0.075);
+            GRAVITY = PLAYER_SIZE * 0.028;
+            JUMP_FORCE = -PLAYER_SIZE * 0.55;
+            ACCEL = PLAYER_SIZE * 0.018;
+            FRICTION = 0.86;
+            MAX_SPEED = PLAYER_SIZE * 0.22;
+
+            // Resetear posiciones escaladas
+            resetLevel();
+            resetPlayer();
         }
 
-        function showMenu() {
-            gameActive = false;
-            canvas.style.display = 'none';
-            menu.style.display = 'flex';
-            levelsScreen.style.display = 'none';
+        function resetLevel() {
+            // Plataformas (estilo madera)
+            platforms = [
+                { x: WORLD_WIDTH * 0.28, y: GROUND - PLAYER_SIZE * 1.7, width: PLAYER_SIZE * 1.4, height: PLAYER_SIZE * 0.6 },
+                { x: WORLD_WIDTH * 0.48, y: GROUND - PLAYER_SIZE * 2.4, width: PLAYER_SIZE * 1.4, height: PLAYER_SIZE * 0.6 },
+                { x: WORLD_WIDTH * 0.72, y: GROUND - PLAYER_SIZE * 1.4, width: PLAYER_SIZE * 1.6, height: PLAYER_SIZE * 0.6 }
+            ];
+
+            // Peligros (agua azul)
+            hazards = [
+                { x: WORLD_WIDTH * 0.22, y: GROUND - PLAYER_SIZE * 0.9, width: PLAYER_SIZE * 2.2, height: PLAYER_SIZE * 0.9 },
+                { x: WORLD_WIDTH * 0.65, y: GROUND - PLAYER_SIZE * 0.9, width: PLAYER_SIZE * 1.8, height: PLAYER_SIZE * 0.9 }
+            ];
+
+            // Gemas rojas brillantes
+            gems = [
+                { x: WORLD_WIDTH * 0.32, y: GROUND - PLAYER_SIZE * 4.2, width: PLAYER_SIZE * 0.7, height: PLAYER_SIZE * 0.7, collected: false },
+                { x: WORLD_WIDTH * 0.51, y: GROUND - PLAYER_SIZE * 5, width: PLAYER_SIZE * 0.7, height: PLAYER_SIZE * 0.7, collected: false },
+                { x: WORLD_WIDTH * 0.76, y: GROUND - PLAYER_SIZE * 3.8, width: PLAYER_SIZE * 0.7, height: PLAYER_SIZE * 0.7, collected: false }
+            ];
+
+            // Puerta
+            door = { x: WORLD_WIDTH - PLAYER_SIZE * 2.5, y: GROUND - PLAYER_SIZE * 3, width: PLAYER_SIZE * 1.6, height: PLAYER_SIZE * 3, open: false };
         }
 
-        function showLevels() {
-            menu.style.display = 'none';
-            levelsScreen.style.display = 'flex';
-            canvas.style.display = 'none';
-        }
-
-        function reset() {
-            player.x = 50;
+        function resetPlayer() {
+            player.x = PLAYER_SIZE * 1.5;
             player.y = GROUND - PLAYER_SIZE;
             player.vx = 0;
             player.vy = 0;
             player.onGround = true;
+            camX = 0;
+            gemsCollected = 0;
             gameWon = false;
+            particles = [];
         }
 
-        // Event listeners para menú
-        startBtn.onclick = startGame;
-        levelsBtn.onclick = showLevels;
-        level1Btn.onclick = startGame;
-        backMenu.onclick = showMenu;
-
-        // Teclado
-        document.addEventListener('keydown', (e) => {
-            keys[e.keyCode] = true;
-            if (e.keyCode === 82 && gameActive) reset(); // R reinicia
-            e.preventDefault();
-        });
-        document.addEventListener('keyup', (e) => {
-            keys[e.keyCode] = false;
-            e.preventDefault();
-        });
-
-        // Touch y Click para juego
-        function handleTouch(e) {
-            e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = WIDTH / rect.width;
-            const scaleY = HEIGHT / rect.height;
-
-            for (let touch of e.changedTouches) {
-                const x = (touch.clientX - rect.left) * scaleX;
-                const y = (touch.clientY - rect.top) * scaleY;
-                const id = touch.identifier;
-
-                // Botón MENU
-                if (e.type === 'touchstart' && x >= WIDTH - 90 && x <= WIDTH - 10 && y >= 10 && y <= 50) {
-                    showMenu();
-                    return;
-                }
-
-                const btnY = HEIGHT - 100;
-                const btnSize = 80;
-                const leftRect = { x: 50, y: btnY, w: btnSize, h: btnSize };
-                const rightRect = { x: 50 + btnSize + 10, y: btnY, w: btnSize, h: btnSize };
-                const jumpRect = { x: WIDTH - 50 - btnSize, y: btnY, w: btnSize, h: btnSize };
-
-                if (e.type === 'touchstart' || e.type === 'touchmove') {
-                    leftTouches.delete(id);
-                    rightTouches.delete(id);
-                    jumpTouches.delete(id);
-
-                    if (x >= leftRect.x && x < leftRect.x + leftRect.w && y >= leftRect.y && y < leftRect.y + leftRect.h) {
-                        leftTouches.add(id);
-                    } else if (x >= rightRect.x && x < rightRect.x + rightRect.w && y >= rightRect.y && y < rightRect.y + rightRect.h) {
-                        rightTouches.add(id);
-                    } else if (x >= jumpRect.x && x < jumpRect.x + jumpRect.w && y >= jumpRect.y && y < jumpRect.y + jumpRect.h) {
-                        jumpTouches.add(id);
-                    }
-                } else if (e.type === 'touchend' || e.type === 'touchcancel') {
-                    leftTouches.delete(id);
-                    rightTouches.delete(id);
-                    jumpTouches.delete(id);
-                }
-            }
-        }
-
-        if (isMobile) {
-            canvas.addEventListener('touchstart', handleTouch, { passive: false });
-            canvas.addEventListener('touchmove', handleTouch, { passive: false });
-            canvas.addEventListener('touchend', handleTouch, { passive: false });
-            canvas.addEventListener('touchcancel', handleTouch, { passive: false });
-        }
-
-        // Click para desktop (MENU)
-        canvas.addEventListener('click', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = WIDTH / rect.width;
-            const scaleY = HEIGHT / rect.height;
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
-            if (x >= WIDTH - 90 && x <= WIDTH - 10 && y >= 10 && y <= 50) {
-                showMenu();
-            }
-        });
-
-        // Colisiones
-        function rectCollide(r1, r2) {
-            return r1.x < r2.x + r2.width && r1.x + r1.width > r2.x &&
-                   r1.y < r2.y + r2.height && r1.y + r1.height > r2.y;
+        // Colisión
+        function rectCollide(a, b) {
+            return a.x < b.x + b.width &&
+                   a.x + a.width > b.x &&
+                   a.y < b.y + b.height &&
+                   a.y + a.height > b.y;
         }
 
         // Update
         function update() {
-            if (!gameActive || gameWon) return;
+            if (gameWon) return;
 
-            const leftPressed = leftTouches.size > 0 || keys[37] || keys[65];
-            const rightPressed = rightTouches.size > 0 || keys[39] || keys[68];
-            const jumpPressed = jumpTouches.size > 0 || keys[32] || keys[38] || keys[87];
+            // Input
+            const left = leftTouches.size > 0 || keys[37] || keys[65];
+            const right = rightTouches.size > 0 || keys[39] || keys[68];
+            const jump = jumpTouches.size > 0 || keys[32] || keys[38] || keys[87];
 
-            if (leftPressed) player.vx -= ACCEL;
-            if (rightPressed) player.vx += ACCEL;
-            if (jumpPressed && player.onGround) {
+            if (left) player.vx = Math.max(player.vx - ACCEL, -MAX_SPEED);
+            if (right) player.vx = Math.min(player.vx + ACCEL, MAX_SPEED);
+            if (jump && player.onGround) {
                 player.vy = JUMP_FORCE;
                 player.onGround = false;
             }
 
             player.vx *= FRICTION;
-            player.vx = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, player.vx));
 
+            // Horizontal
             player.x += player.vx;
-            if (player.x < 0) player.x = 0;
-            if (player.x > WIDTH - PLAYER_SIZE) player.x = WIDTH - PLAYER_SIZE;
+            player.x = Math.max(0, Math.min(WORLD_WIDTH - player.width, player.x));
 
-            for (let obs of obstacles) {
-                if (rectCollide(player, obs)) {
-                    if (player.vx > 0) player.x = obs.x - player.width;
-                    else if (player.vx < 0) player.x = obs.x + obs.width;
+            // Colisiones laterales plataformas/hazards
+            for (let plat of platforms) {
+                if (rectCollide(player, plat)) {
+                    if (player.vx > 0) player.x = plat.x - player.width;
+                    if (player.vx < 0) player.x = plat.x + plat.width;
                     player.vx = 0;
                 }
             }
+            for (let haz of hazards) {
+                if (rectCollide(player, haz)) {
+                    resetPlayer();
+                    return;
+                }
+            }
 
+            // Vertical
             player.vy += GRAVITY;
             player.y += player.vy;
             player.onGround = false;
 
+            // Suelo
             if (player.y >= GROUND - player.height) {
                 player.y = GROUND - player.height;
                 player.vy = 0;
                 player.onGround = true;
             } else {
-                for (let obs of obstacles) {
-                    if (rectCollide(player, obs)) {
+                // Plataformas
+                for (let plat of platforms) {
+                    if (rectCollide(player, plat)) {
                         if (player.vy > 0) {
-                            player.y = obs.y - player.height;
+                            player.y = plat.y - player.height;
                             player.vy = 0;
                             player.onGround = true;
                             break;
@@ -329,150 +192,315 @@
                 }
             }
 
-            if (rectCollide(player, door)) {
+            // Gemas
+            for (let gem of gems) {
+                if (!gem.collected && rectCollide(player, gem)) {
+                    gem.collected = true;
+                    gemsCollected++;
+                }
+            }
+
+            // Puerta
+            if (rectCollide(player, door) && gemsCollected === totalGems) {
                 gameWon = true;
             }
 
-            if (keys[82]) reset(); // R reinicia
+            // Cámara suave
+            camTarget = player.x + player.width / 2 - WIDTH / 2;
+            camTarget = Math.max(0, Math.min(camTarget, WORLD_WIDTH - WIDTH));
+            camX += (camTarget - camX) * 0.12;
+
+            // Partículas fuego
+            emitParticles();
+            updateParticles();
         }
 
-        // Draw
+        function emitParticles() {
+            if (Math.random() < 0.4 || player.onGround) {
+                for (let i = 0; i < 2 + Math.random() * 3; i++) {
+                    particles.push({
+                        x: player.x + player.width / 2 + (Math.random() - 0.5) * player.width * 0.4,
+                        y: player.y + player.height,
+                        vx: (Math.random() - 0.5) * 3,
+                        vy: Math.random() * -1.5 - 1,
+                        life: 25 + Math.random() * 25,
+                        maxLife: 50
+                    });
+                }
+            }
+        }
+
+        function updateParticles() {
+            particles = particles.filter(p => {
+                p.vy += 0.25;
+                p.x += p.vx * 0.7;
+                p.y += p.vy * 0.7;
+                p.life--;
+                p.vx *= 0.98;
+                p.vy *= 0.98;
+                return p.life > 0;
+            });
+        }
+
+        // Dibujar
         function draw() {
-            // Fondo
-            const grad = ctx.createLinearGradient(0, 0, 0, HEIGHT);
-            grad.addColorStop(0, '#87CEEB');
-            grad.addColorStop(1, '#98D8E9');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+            ctx.save();
+            ctx.translate(-camX, 0);
 
-            // Suelo
+            // Fondo cueva Fireboy-style
+            const bgGrad = ctx.createRadialGradient(
+                WIDTH / 2 + camX, HEIGHT / 2, 0,
+                WIDTH / 2 + camX, HEIGHT / 2, Math.hypot(WIDTH, WORLD_HEIGHT) / 1.5
+            );
+            bgGrad.addColorStop(0, '#3a1a0f');
+            bgGrad.addColorStop(0.4, '#2c0f05');
+            bgGrad.addColorStop(0.7, '#1a0703');
+            bgGrad.addColorStop(1, '#000');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+            // Suelo madera
+            ctx.fillStyle = '#5D4037';
+            ctx.fillRect(0, GROUND, WORLD_WIDTH, WORLD_HEIGHT - GROUND);
+            ctx.strokeStyle = '#8D6E63';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < WORLD_WIDTH; i += 40) {
+                ctx.beginPath();
+                ctx.moveTo(i, GROUND);
+                ctx.lineTo(i, WORLD_HEIGHT);
+                ctx.stroke();
+            }
+
+            // Plataformas madera
             ctx.fillStyle = '#8B4513';
-            ctx.fillRect(0, GROUND, WIDTH, HEIGHT - GROUND);
+            for (let plat of platforms) {
+                ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+                ctx.strokeStyle = '#A0522D';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(plat.x, plat.y, plat.width, plat.height);
+                // Líneas madera
+                ctx.strokeStyle = '#654321';
+                for (let ly = plat.y + 6; ly < plat.y + plat.height; ly += 12) {
+                    ctx.beginPath();
+                    ctx.moveTo(plat.x, ly);
+                    ctx.lineTo(plat.x + plat.width, ly);
+                    ctx.stroke();
+                }
+            }
 
-            // Obstáculos
-            ctx.fillStyle = '#666';
-            obstacles.forEach(obs => {
-                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-                ctx.strokeStyle = '#444';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+            // Hazards agua
+            for (let haz of hazards) {
+                const waterGrad = ctx.createLinearGradient(haz.x, haz.y, haz.x, haz.y + haz.height);
+                waterGrad.addColorStop(0, '#4169E1');
+                waterGrad.addColorStop(1, '#00008B');
+                ctx.fillStyle = waterGrad;
+                ctx.beginPath();
+                ctx.roundRect(haz.x + 5, haz.y, haz.width - 10, haz.height, 20);
+                ctx.fill();
+                // Olas
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(haz.x + 10, haz.y + 8);
+                ctx.quadraticCurveTo(haz.x + haz.width/2, haz.y + 4, haz.x + haz.width - 10, haz.y + 8);
+                ctx.stroke();
+            }
+
+            // Gemas
+            gems.forEach((gem, i) => {
+                if (!gem.collected) {
+                    const shine = 1 + 0.15 * Math.sin(Date.now() * 0.008 + i);
+                    drawDiamond(gem.x + gem.width/2, gem.y + gem.height/2, gem.width/2 * shine, PLAYER_SIZE);
+                }
             });
 
-            // Puerta
+            // Puerta dorada
             ctx.fillStyle = '#FFD700';
+            ctx.shadowColor = '#FF8C00';
+            ctx.shadowBlur = PLAYER_SIZE * 0.3;
             ctx.fillRect(door.x, door.y, door.width, door.height);
-            ctx.fillStyle = '#8B4513';
-            ctx.fillRect(door.x + 8, door.y + 15, 24, 50);
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#FF4500';
+            ctx.fillRect(door.x + door.width * 0.2, door.y + door.height * 0.1, door.width * 0.6, door.height * 0.8);
             ctx.strokeStyle = '#000';
             ctx.lineWidth = 3;
             ctx.strokeRect(door.x, door.y, door.width, door.height);
 
-            // Jugador
-            ctx.fillStyle = '#FF6B35';
-            ctx.shadowColor = '#FF8C42';
-            ctx.shadowBlur = 10;
+            // Jugador cubo fuego
+            ctx.save();
+            ctx.shadowColor = 'rgba(255,100,0,0.6)';
+            ctx.shadowBlur = PLAYER_SIZE * 0.4;
+            ctx.shadowOffsetY = PLAYER_SIZE * 0.1;
+            const fireGrad = ctx.createLinearGradient(player.x, player.y, player.x + player.width, player.y + player.height);
+            fireGrad.addColorStop(0, '#FF6B35');
+            fireGrad.addColorStop(0.5, '#FF4500');
+            fireGrad.addColorStop(1, '#8B0000');
+            ctx.fillStyle = fireGrad;
             ctx.fillRect(player.x, player.y, player.width, player.height);
             ctx.shadowBlur = 0;
-            ctx.strokeStyle = '#000';
+            ctx.strokeStyle = '#FFF';
             ctx.lineWidth = 2;
             ctx.strokeRect(player.x, player.y, player.width, player.height);
+            ctx.restore();
 
-            // Botón MENU (siempre visible en juego)
+            // Partículas
+            particles.forEach(p => {
+                const alpha = p.life / p.maxLife;
+                ctx.save();
+                ctx.globalAlpha = alpha * alpha;
+                const col = `hsl(15, 100%, ${40 + p.life * 0.4}%)`;
+                ctx.fillStyle = col;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, PLAYER_SIZE * 0.015 * (p.life / p.maxLife), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            ctx.restore();
+
+            // UI overlay
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(0, 0, WIDTH, PLAYER_SIZE * 1.5);
+
+            ctx.fillStyle = '#FFD700';
+            ctx.font = `bold ${PLAYER_SIZE}px Arial`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`Gemas: \( {gemsCollected}/ \){totalGems}`, PLAYER_SIZE * 0.5, PLAYER_SIZE * 0.75);
+
+            // Botón Restart arriba derecha
+            const restartSize = PLAYER_SIZE * 1.2;
             ctx.fillStyle = '#FF4444';
-            ctx.fillRect(WIDTH - 90, 10, 80, 40);
+            ctx.fillRect(WIDTH - restartSize * 1.1, 10, restartSize, PLAYER_SIZE);
             ctx.strokeStyle = '#FFF';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(WIDTH - 90, 10, 80, 40);
+            ctx.lineWidth = 2;
+            ctx.strokeRect(WIDTH - restartSize * 1.1, 10, restartSize, PLAYER_SIZE);
             ctx.fillStyle = 'white';
-            ctx.font = 'bold 22px Arial';
+            ctx.font = `bold ${PLAYER_SIZE * 0.6}px Arial`;
             ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('MENU', WIDTH - 50, 30);
+            ctx.fillText('R', WIDTH - restartSize * 0.55, PLAYER_SIZE * 0.5);
 
-            // Instrucciones
+            // Botones táctiles (fondo semi-trans)
+            const btnSize = HEIGHT * 0.14;
+            const btnMargin = WIDTH * 0.03;
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            ctx.fillRect(0, HEIGHT - btnSize * 1.1, WIDTH, btnSize * 1.1);
+
+            // ←
+            ctx.fillStyle = leftTouches.size ? '#FF5555' : 'rgba(255,80,80,0.8)';
+            ctx.fillRect(btnMargin, HEIGHT - btnSize - btnMargin, btnSize, btnSize);
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(btnMargin, HEIGHT - btnSize - btnMargin, btnSize, btnSize);
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${btnSize * 0.5}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillStyle = 'rgba(0,0,0,0.7)';
-            ctx.fillRect(20, HEIGHT - 70, WIDTH - 40, 55);
+            ctx.fillText('←', btnMargin + btnSize / 2, HEIGHT - btnSize - btnMargin + btnSize / 2);
+
+            // →
+            const rightBtnX = btnMargin + btnSize + btnMargin * 2;
+            ctx.fillStyle = rightTouches.size ? '#55FF55' : 'rgba(80,255,80,0.8)';
+            ctx.fillRect(rightBtnX, HEIGHT - btnSize - btnMargin, btnSize, btnSize);
+            ctx.strokeRect(rightBtnX, HEIGHT - btnSize - btnMargin, btnSize, btnSize);
+            ctx.fillText('→', rightBtnX + btnSize / 2, HEIGHT - btnSize - btnMargin + btnSize / 2);
+
+            // ↑
+            const jumpBtnX = WIDTH - btnSize - btnMargin;
+            ctx.fillStyle = jumpTouches.size ? '#5555FF' : 'rgba(80,80,255,0.8)';
+            ctx.beginPath();
+            ctx.arc(jumpBtnX + btnSize / 2, HEIGHT - btnSize - btnMargin + btnSize / 2, btnSize / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.stroke();
             ctx.fillStyle = 'white';
-            ctx.font = 'bold 20px Arial';
-            ctx.fillText('Toca ← → ↑  o  Teclas', WIDTH / 2, HEIGHT - 42);
-            ctx.font = '18px Arial';
-            ctx.fillText('MENU para salir al menú', WIDTH / 2, HEIGHT - 20);
+            ctx.fillText('↑', jumpBtnX + btnSize / 2, HEIGHT - btnSize - btnMargin + btnSize / 2);
+
+            ctx.textAlign = 'left';
 
             // Victoria
             if (gameWon) {
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillStyle = 'rgba(0,0,0,0.9)';
                 ctx.fillRect(0, 0, WIDTH, HEIGHT);
                 ctx.fillStyle = '#FFD700';
-                ctx.shadowColor = '#FFA500';
-                ctx.shadowBlur = 20;
-                ctx.font = 'bold 64px Arial';
-                ctx.fillText('¡Ganaste!', WIDTH / 2, HEIGHT / 2 - 20);
+                ctx.shadowColor = '#FF4500';
+                ctx.shadowBlur = 30;
+                ctx.font = `bold ${Math.min(WIDTH, HEIGHT) * 0.15}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('¡Nivel Completado!', WIDTH / 2, HEIGHT / 2);
                 ctx.shadowBlur = 0;
-                ctx.font = 'bold 32px Arial';
+                ctx.font = `bold ${Math.min(WIDTH, HEIGHT) * 0.08}px Arial`;
                 ctx.fillStyle = 'white';
-                ctx.fillText('Toca MENU para volver', WIDTH / 2, HEIGHT / 2 + 60);
+                ctx.fillText('Toca R para reiniciar', WIDTH / 2, HEIGHT / 2 + Math.min(WIDTH, HEIGHT) * 0.08);
+                ctx.textAlign = 'left';
             }
-
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'alphabetic';
         }
 
-        // Botones táctiles en draw (solo si gameActive)
-        if (isMobile && gameActive) {
-            // Se dibujan en draw
-            const btnY = HEIGHT - 100;
-            const btnSize = 80;
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = '#000';
-            ctx.font = 'bold 40px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-
-            // ←
-            ctx.fillStyle = leftTouches.size > 0 ? '#FF4444' : 'rgba(255, 100, 100, 0.8)';
-            ctx.fillRect(50, btnY, btnSize, btnSize);
-            ctx.strokeRect(50, btnY, btnSize, btnSize);
-            ctx.fillStyle = 'white';
-            ctx.fillText('←', 50 + btnSize / 2, btnY + btnSize / 2);
-
-            // →
-            const rightX = 50 + btnSize + 10;
-            ctx.fillStyle = rightTouches.size > 0 ? '#44FF44' : 'rgba(100, 255, 100, 0.8)';
-            ctx.fillRect(rightX, btnY, btnSize, btnSize);
-            ctx.strokeRect(rightX, btnY, btnSize, btnSize);
-            ctx.fillStyle = 'white';
-            ctx.fillText('→', rightX + btnSize / 2, btnY + btnSize / 2);
-
-            // ↑
-            const jumpX = WIDTH - 50 - btnSize;
-            ctx.fillStyle = jumpTouches.size > 0 ? '#4444FF' : 'rgba(100, 100, 255, 0.8)';
+        function drawDiamond(cx, cy, size) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(Date.now() * 0.002);
             ctx.beginPath();
-            ctx.arc(jumpX + btnSize / 2, btnY + btnSize / 2, btnSize / 2, 0, Math.PI * 2);
+            ctx.moveTo(0, -size);
+            ctx.lineTo(size * 0.7, 0);
+            ctx.lineTo(0, size);
+            ctx.lineTo(-size * 0.7, 0);
+            ctx.closePath();
+            const gemGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 1.5);
+            gemGrad.addColorStop(0, '#FFFFAA');
+            gemGrad.addColorStop(0.3, '#FF8C00');
+            gemGrad.addColorStop(0.7, '#FF4500');
+            gemGrad.addColorStop(1, '#8B0000');
+            ctx.fillStyle = gemGrad;
             ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+            ctx.lineWidth = 1.5;
             ctx.stroke();
-            ctx.fillStyle = 'white';
-            ctx.fillText('↑', jumpX + btnSize / 2, btnY + btnSize / 2);
-
-            ctx.textAlign = 'left';
+            ctx.restore();
         }
 
-        // Bucle principal
-        function gameLoop() {
-            update();
-            if (canvas.style.display !== 'none') {
-                draw();
-            }
-            requestAnimationFrame(gameLoop);
-        }
-
-        // Resize (mantiene lógico fijo)
-        window.addEventListener('resize', () => {
-            // CSS maneja escalado
+        // Eventos
+        window.addEventListener('resize', resize);
+        document.addEventListener('keydown', e => {
+            keys[e.keyCode] = true;
+            if (e.keyCode === 82) resetPlayer(); // R
+            e.preventDefault();
         });
+        document.addEventListener('keyup', e => { keys[e.keyCode] = false; e.preventDefault(); });
 
-        gameLoop();
-    </script>
-</body>
-</html>
+        // Touch
+        function handleTouch(e) {
+            e.preventDefault();
+            const touches = e.changedTouches;
+            const btnSize = HEIGHT * 0.14;
+            const btnMargin = WIDTH * 0.03;
+            const leftRect = {x: btnMargin, y: HEIGHT - btnSize - btnMargin, w: btnSize, h: btnSize};
+            const rightRect = {x: btnMargin + btnSize + btnMargin * 2, y: leftRect.y, w: btnSize, h: btnSize};
+            const jumpRect = {x: WIDTH - btnSize - btnMargin, y: leftRect.y, w: btnSize, h: btnSize};
+            const restartRect = {x: WIDTH - PLAYER_SIZE * 1.32, y: 10, w: PLAYER_SIZE, h: PLAYER_SIZE};
+
+            for (let touch of touches) {
+                const x = touch.clientX;
+                const y = touch.clientY;
+                const id = touch.identifier;
+
+                if (e.type.startsWith('touchend') || e.type === 'touchcancel') {
+                    leftTouches.delete(id);
+                    rightTouches.delete(id);
+                    jumpTouches.delete(id);
+                    continue;
+                }
+
+                leftTouches.delete(id);
+                rightTouches.delete(id);
+                jumpTouches.delete(id);
+
+                if (x > leftRect.x && x < leftRect.x + leftRect.w && y > leftRect.y && y < leftRect.y + leftRect.h) {
+                    leftTouches.add(id);
+                } else if (x > rightRect.x && x < rightRect.x + rightRect.w && y > rightRect.y && y < rightRect.y + rightRect.h) {
+                    rightTouches.add(id);
+                } else if (x > jumpRect.x && x < jumpRect.x + jumpRect.w && y > jumpRect.y && y < jumpRect.y + jumpRect.h) {
+                    jumpTouches.add(id);
+                } else if (x > restartRect
