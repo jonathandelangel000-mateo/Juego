@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nivel 1 - Vertical</title>
+    <title>Nivel 1 - Bosque Vertical</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
     <style>
         body { margin: 0; background-color: #000; overflow: hidden; touch-action: none; }
@@ -15,7 +15,6 @@
 <script>
     const config = {
         type: Phaser.AUTO,
-        // CAMBIO: Resolución VERTICAL para llenar la pantalla del celular
         width: 360,
         height: 640,
         backgroundColor: '#111',
@@ -55,16 +54,16 @@
 
     function preload() {
         // --- CARGA DE IMÁGENES (Desde carpeta 'fotos') ---
-        // Asegúrate de que los nombres coincidan exactamente con tus archivos
-        this.load.image('bloque', 'fotos/bloque.png');
-        this.load.image('suelo', 'fotos/suelo.png');
-        this.load.image('puerta', 'fotos/puerta.png');
-        this.load.image('llave', 'fotos/llave.png');
-        // Si no tienes imagen de pincho, usaremos un gráfico generado abajo
+        // Ajustado a los nombres que pediste
+        this.load.image('bloque', 'fotos/flores.jpg');    // Antes bloque.png
+        this.load.image('suelo', 'fotos/suelo.png');      // Mantenemos suelo si existe, o se puede cambiar
+        this.load.image('puerta', 'fotos/puerta.jpg');    // Corregido a .jpg
+        this.load.image('llave', 'fotos/llave.png');      // Asumo .png, si es jpg cámbialo aquí
+        this.load.image('fondo', 'fotos/bosque.jpg');     // Nuevo fondo
     }
 
     function create() {
-        // Generador de gráficos de respaldo (por si faltan imágenes o para pinchos)
+        // Generador de gráficos de respaldo
         let g = this.make.graphics({x:0, y:0, add: false});
 
         // Pincho (Triángulo Rojo)
@@ -79,40 +78,39 @@
         g.generateTexture('dudeTex', 24, 36);
 
         // --- 1. LÍMITES Y FONDO ---
-        // El juego usa 640px de alto.
-        // Zona de juego: 0 a 540px.
-        // Zona de botones (negra): 540px a 640px.
         this.physics.world.setBounds(0, 0, 360, 540); 
+
+        // FONDO (Bosque)
+        // Lo estiramos para que cubra toda la zona de juego (360x540)
+        let bg = this.add.image(180, 270, 'fondo');
+        bg.displayWidth = 360;
+        bg.displayHeight = 540;
+        bg.setDepth(-1); // Para que quede detrás de todo
 
         // --- 2. DISEÑO DEL NIVEL (VERTICAL) ---
         platforms = this.physics.add.staticGroup();
         spikes = this.physics.add.staticGroup();
 
-        // SUELO BASE (Imagen única estirada)
-        // Ajustamos la posición Y para que esté justo encima de los botones
-        let suelo = platforms.create(180, 530, 'suelo'); 
-        suelo.displayWidth = 360; // Ancho total de pantalla
-        suelo.displayHeight = 40; // Altura del suelo
+        // SUELO BASE
+        // Usamos 'bloque' (flores) estirado si no hay imagen de suelo específica, 
+        // o la imagen 'suelo' si ya la tienes. Aquí uso 'bloque' para asegurar que se vea algo.
+        // Si prefieres usar 'suelo.png', cambia 'bloque' por 'suelo'.
+        let suelo = platforms.create(180, 530, 'bloque'); 
+        suelo.displayWidth = 360; 
+        suelo.displayHeight = 40; 
         suelo.refreshBody();
 
-        // PAREDES INVISIBLES (Para que no se salga por los lados)
-        // Izquierda
-        let wallL = platforms.create(-10, 270, null);
-        wallL.displayWidth = 20; wallL.displayHeight = 540; wallL.refreshBody();
-        // Derecha
-        let wallR = platforms.create(370, 270, null);
-        wallR.displayWidth = 20; wallR.displayHeight = 540; wallR.refreshBody();
-        // Techo
-        let wallT = platforms.create(180, -10, null);
-        wallT.displayWidth = 360; wallT.displayHeight = 20; wallT.refreshBody();
+        // PAREDES INVISIBLES
+        let wallL = platforms.create(-10, 270, null); wallL.displayWidth = 20; wallL.displayHeight = 540; wallL.refreshBody();
+        let wallR = platforms.create(370, 270, null); wallR.displayWidth = 20; wallR.displayHeight = 540; wallR.refreshBody();
+        let wallT = platforms.create(180, -10, null); wallT.displayWidth = 360; wallT.displayHeight = 20; wallT.refreshBody();
 
 
-        // --- PLATAFORMAS DE BLOQUES ---
-        // Función: createTilePlatform(x, y, cantidad_bloques)
+        // --- PLATAFORMAS DE BLOQUES (FLORES) ---
         
         // Piso 1
-        createTilePlatform(this, 100, 430, 3); // Izquierda
-        createTilePlatform(this, 260, 430, 3); // Derecha
+        createTilePlatform(this, 100, 430, 3); 
+        createTilePlatform(this, 260, 430, 3); 
 
         // Piso 2 (Centro con trampa)
         createTilePlatform(this, 180, 330, 4);
@@ -128,22 +126,17 @@
 
         // --- 3. OBJETIVOS ---
         
-        // LLAVE (Ahora con física estática para que no caiga)
-        // La ponemos en una plataforma alta (ej: Piso 3 izq)
+        // LLAVE
         keyItem = this.physics.add.image(80, 200, 'llave');
-        keyItem.body.allowGravity = false; // ¡CORRECCIÓN! Ya no se cae
-        // Efecto flotante suave
-        this.tweens.add({
-            targets: keyItem,
-            y: keyItem.y - 10,
-            duration: 1000,
-            yoyo: true,
-            repeat: -1
-        });
+        keyItem.body.allowGravity = false; 
+        this.tweens.add({ targets: keyItem, y: keyItem.y - 10, duration: 1000, yoyo: true, repeat: -1 });
         
-        // PUERTA (Imagen 'puerta.png')
-        // La ponemos en la cima
+        // PUERTA
         door = this.physics.add.staticImage(180, 95, 'puerta');
+        // Ajustamos tamaño si es muy grande
+        door.displayWidth = 40;
+        door.displayHeight = 60;
+        door.refreshBody();
         
         // JUGADOR
         player = this.physics.add.sprite(180, 480, 'dudeTex');
@@ -152,7 +145,6 @@
 
         // --- 4. COLISIONES ---
         this.physics.add.collider(player, platforms);
-        
         this.physics.add.overlap(player, spikes, takeDamage, null, this);
         this.physics.add.overlap(player, keyItem, collectKey, null, this);
         this.physics.add.overlap(player, door, enterDoor, null, this);
@@ -162,16 +154,18 @@
         createInterface(this);
     }
 
-    // --- FUNCIÓN PARA CREAR PLATAFORMAS CON BLOQUES REPETIDOS ---
     function createTilePlatform(scene, x, y, numBlocks) {
-        // Tamaño del bloque (ajusta según tu imagen, ej: 32px)
+        // Asumiendo que tus bloques son cuadrados, ajusta este tamaño si es necesario
+        // Si flores.jpg es muy grande, Phaser lo usará tal cual. 
+        // Aquí forzamos un tamaño estándar de 32x32 para que el nivel se vea bien.
         const blockSize = 32; 
-        
-        // Calculamos el inicio para centrar la plataforma en X
         let startX = x - ((numBlocks * blockSize) / 2) + (blockSize / 2);
 
         for (let i = 0; i < numBlocks; i++) {
-            platforms.create(startX + (i * blockSize), y, 'bloque');
+            let b = platforms.create(startX + (i * blockSize), y, 'bloque');
+            b.displayWidth = blockSize;
+            b.displayHeight = blockSize;
+            b.refreshBody();
         }
     }
 
@@ -179,22 +173,17 @@
         if (isGameOver) return;
 
         player.setVelocityX(0);
-
         const isLeft = moveLeft || cursors.left.isDown;
         const isRight = moveRight || cursors.right.isDown;
         const isJump = jump || cursors.up.isDown || cursors.space.isDown;
 
-        if (isLeft) {
-            player.setVelocityX(-200);
-        } else if (isRight) {
-            player.setVelocityX(200);
-        }
+        if (isLeft) player.setVelocityX(-200);
+        else if (isRight) player.setVelocityX(200);
 
         if (isJump && (player.body.touching.down || player.body.blocked.down)) {
             player.setVelocityY(-550);
             jump = false; 
         }
-
         txtLives.setText('VIDAS: ' + lives);
     }
 
@@ -202,26 +191,21 @@
         lives--;
         player.setTint(0xff0000);
         player.setVelocityY(-300);
-        player.x = 180; player.y = 480; // Reset
-        
+        player.x = 180; player.y = 480; 
         this.time.delayedCall(500, () => player.clearTint());
-
-        if (lives <= 0) {
-            gameOver("💀 INTÉNTALO DE NUEVO");
-        }
+        if (lives <= 0) gameOver("💀 INTÉNTALO DE NUEVO");
     }
 
     function collectKey(player, key) {
         key.disableBody(true, true);
         hasKey = true;
-        door.setTint(0x00ff00); // Se pone verde
+        door.setTint(0x00ff00); 
         txtInfo.setText("¡VE A LA PUERTA!");
     }
 
     function enterDoor() {
         if (hasKey) {
             gameOver("🏆 ¡NIVEL COMPLETADO!");
-            // window.location.href = "nivel2.html";
         } else {
             txtInfo.setText("🔒 FALTA LLAVE");
         }
@@ -234,11 +218,9 @@
         location.reload();
     }
 
-    // --- INTERFAZ VERTICAL (AJUSTADA A 360px DE ANCHO) ---
     function createInterface(scene) {
         uiContainer = scene.add.container(0, 0).setScrollFactor(0).setDepth(9999);
 
-        // Barra Info
         let topBar = scene.add.graphics();
         topBar.fillStyle(0x000000, 0.7);
         topBar.fillRect(0, 0, 360, 30);
@@ -248,7 +230,6 @@
         txtInfo = scene.add.text(150, 5, 'BUSCA LA LLAVE', { fontSize: '14px', color: '#ffff00' });
         uiContainer.add([txtLives, txtInfo]);
 
-        // Zona Botones (Abajo)
         let bottomBar = scene.add.graphics();
         bottomBar.fillStyle(0x111111, 1);
         bottomBar.fillRect(0, 540, 360, 100);
@@ -257,13 +238,9 @@
         uiContainer.add(bottomBar);
 
         const btnY = 590; 
-
-        // Botones más compactos para pantalla vertical
         let btnL = createBtn(scene, 60, btnY, '<', 0x333333, () => moveLeft=true, () => moveLeft=false);
         let btnR = createBtn(scene, 140, btnY, '>', 0x333333, () => moveRight=true, () => moveRight=false);
-        
         let btnJ = createBtn(scene, 290, btnY, 'JUMP', 0xaa0000, () => jump=true, () => jump=false, 40);
-
         uiContainer.add([btnL, btnR, btnJ]);
     }
 
