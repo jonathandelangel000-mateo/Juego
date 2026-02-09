@@ -2,251 +2,477 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nivel 1 - El Bosque</title>
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Cubo Saltarín - Menú Principal</title>
     <style>
-        body { margin: 0; background-color: #000; overflow: hidden; touch-action: none; }
-        canvas { display: block; margin: 0 auto; }
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to bottom, #87CEEB, #98D8E9);
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            color: white;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        .screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(to bottom, #87CEEB, #98D8E9);
+        }
+        #gameCanvas {
+            display: none;
+            max-width: 100vw;
+            max-height: 100vh;
+            width: auto;
+            height: auto;
+            background: #000;
+            border: 2px solid #333;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+        h1 {
+            font-size: clamp(32px, 8vw, 64px);
+            margin: 0 0 40px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+        h2 {
+            font-size: clamp(24px, 6vw, 48px);
+            margin: 0 0 30px 0;
+            text-align: center;
+        }
+        button {
+            background: linear-gradient(145deg, #FF6B35, #FF8C42);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            padding: clamp(20px, 5vw, 30px) clamp(40px, 10vw, 60px);
+            font-size: clamp(20px, 5vw, 28px);
+            font-weight: bold;
+            margin: 15px;
+            min-height: 80px;
+            min-width: 220px;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            transition: all 0.2s ease;
+            touch-action: manipulation;
+        }
+        button:hover, button:active {
+            transform: scale(1.05);
+            background: linear-gradient(145deg, #FF8C42, #FF6B35);
+            box-shadow: 0 12px 25px rgba(0,0,0,0.4);
+        }
+        #backMenu {
+            background: linear-gradient(145deg, #666, #888);
+            min-height: 70px;
+            min-width: 180px;
+            font-size: clamp(18px, 4.5vw, 24px);
+        }
+        #credits {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: clamp(14px, 3vw, 18px);
+            color: #FFD700;
+            text-align: center;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+            z-index: 100;
+            font-style: italic;
+        }
+        @media (orientation: landscape) {
+            h1 { margin-bottom: 5vh; }
+            button { margin: 2vh; padding: 4vh 8vw; }
+            #backMenu { padding: 3vh 6vw; }
+        }
     </style>
 </head>
 <body>
+    <div id="menu" class="screen">
+        <h1>🎮 Cubo Saltarín 🎮</h1>
+        <button id="startBtn">Iniciar Juego</button>
+        <button id="levelsBtn">Ver Niveles</button>
+    </div>
+    <div id="levelsScreen" class="screen" style="display: none;">
+        <h2>Niveles Disponibles</h2>
+        <button id="level1Btn">Nivel 1<br><small>Simple</small></button>
+        <button id="backMenu">← Volver al Menú</button>
+    </div>
+    <canvas id="gameCanvas" width="800" height="400" tabindex="0"></canvas>
+    <div id="credits">- Desarrollado por Jonathan Del Angel -</div>
 
-<script>
-    const config = {
-        type: Phaser.AUTO,
-        width: 360,
-        height: 640,
-        backgroundColor: '#000',
-        scale: {
-            mode: Phaser.Scale.FIT,
-            autoCenter: Phaser.Scale.CENTER_BOTH
-        },
-        input: { activePointers: 3 },
-        physics: {
-            default: 'arcade',
-            arcade: {
-                gravity: { y: 1000 },
-                debug: false
+    <script>
+        // Elementos DOM
+        const menu = document.getElementById('menu');
+        const levelsScreen = document.getElementById('levelsScreen');
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const levelsBtn = document.getElementById('levelsBtn');
+        const level1Btn = document.getElementById('level1Btn');
+        const backMenu = document.getElementById('backMenu');
+
+        // Detectar móvil
+        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+        // Constantes del juego
+        let WIDTH = 800;
+        let HEIGHT = 400;
+        const ASPECT = 2; // 800/400
+        const GROUND = 350;
+        const PLAYER_SIZE = 32;
+        const GRAVITY = 0.8;
+        const JUMP_FORCE = -16;
+        const ACCEL = 0.6;
+        const FRICTION = 0.85;
+        const MAX_SPEED = 6;
+
+        // Estado del juego
+        let gameActive = false;
+        let gameWon = false;
+        const player = {
+            x: 50, y: GROUND - PLAYER_SIZE, width: PLAYER_SIZE, height: PLAYER_SIZE,
+            vx: 0, vy: 0, onGround: true
+        };
+        const obstacles = [
+            { x: 220, width: 40, height: 50 },
+            { x: 380, width: 40, height: 70 },
+            { x: 580, width: 50, height: 40 }
+        ];
+        const door = { x: 720, width: 40, height: 80 };
+        obstacles.forEach(obs => { obs.y = GROUND - obs.height; });
+        door.y = GROUND - door.height;
+        const keys = {};
+        const leftTouches = new Set();
+        const rightTouches = new Set();
+        const jumpTouches = new Set();
+
+        // Funciones de navegación
+        function startGame() {
+            menu.style.display = 'none';
+            levelsScreen.style.display = 'none';
+            canvas.style.display = 'block';
+            canvas.focus();
+            gameActive = true;
+            reset();
+        }
+
+        function showMenu() {
+            gameActive = false;
+            canvas.style.display = 'none';
+            menu.style.display = 'flex';
+            levelsScreen.style.display = 'none';
+        }
+
+        function showLevels() {
+            menu.style.display = 'none';
+            levelsScreen.style.display = 'flex';
+            canvas.style.display = 'none';
+        }
+
+        function reset() {
+            player.x = 50;
+            player.y = GROUND - PLAYER_SIZE;
+            player.vx = 0;
+            player.vy = 0;
+            player.onGround = true;
+            gameWon = false;
+        }
+
+        // Event listeners para menú
+        startBtn.onclick = startGame;
+        levelsBtn.onclick = showLevels;
+        level1Btn.onclick = startGame;
+        backMenu.onclick = showMenu;
+
+        // Teclado
+        document.addEventListener('keydown', (e) => {
+            keys[e.keyCode] = true;
+            if (e.keyCode === 82 && gameActive) reset(); // R reinicia
+            e.preventDefault();
+        });
+        document.addEventListener('keyup', (e) => {
+            keys[e.keyCode] = false;
+            e.preventDefault();
+        });
+
+        // Touch y Click para juego
+        function handleTouch(e) {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = WIDTH / rect.width;
+            const scaleY = HEIGHT / rect.height;
+
+            for (let touch of e.changedTouches) {
+                const x = (touch.clientX - rect.left) * scaleX;
+                const y = (touch.clientY - rect.top) * scaleY;
+                const id = touch.identifier;
+
+                // Botón MENU
+                if (e.type === 'touchstart' && x >= WIDTH - 90 && x <= WIDTH - 10 && y >= 10 && y <= 50) {
+                    showMenu();
+                    return;
+                }
+
+                const btnY = HEIGHT - 100;
+                const btnSize = 80;
+                const leftRect = { x: 50, y: btnY, w: btnSize, h: btnSize };
+                const rightRect = { x: 50 + btnSize + 10, y: btnY, w: btnSize, h: btnSize };
+                const jumpRect = { x: WIDTH - 50 - btnSize, y: btnY, w: btnSize, h: btnSize };
+
+                if (e.type === 'touchstart' || e.type === 'touchmove') {
+                    leftTouches.delete(id);
+                    rightTouches.delete(id);
+                    jumpTouches.delete(id);
+
+                    if (x >= leftRect.x && x < leftRect.x + leftRect.w && y >= leftRect.y && y < leftRect.y + leftRect.h) {
+                        leftTouches.add(id);
+                    } else if (x >= rightRect.x && x < rightRect.x + rightRect.w && y >= rightRect.y && y < rightRect.y + rightRect.h) {
+                        rightTouches.add(id);
+                    } else if (x >= jumpRect.x && x < jumpRect.x + jumpRect.w && y >= jumpRect.y && y < jumpRect.y + jumpRect.h) {
+                        jumpTouches.add(id);
+                    }
+                } else if (e.type === 'touchend' || e.type === 'touchcancel') {
+                    leftTouches.delete(id);
+                    rightTouches.delete(id);
+                    jumpTouches.delete(id);
+                }
             }
-        },
-        scene: { preload: preload, create: create, update: update }
-    };
-
-    // VARIABLES
-    let player, platforms, door, keyItem;
-    let cursors; 
-    let spikes;
-    let uiContainer;
-    
-    // ESTADO
-    let lives = 3;
-    let hasKey = false;
-    let isGameOver = false;
-
-    // CONTROLES
-    let moveLeft = false, moveRight = false, jump = false;
-
-    // UI
-    let txtLives, txtInfo;
-
-    const game = new Phaser.Game(config);
-
-    function preload() {
-        // --- CARGA DE IMÁGENES ---
-        // 1. FONDO (Tu imagen nueva)
-        this.load.image('fondo', 'fotos/bosque.jpg');
-        
-        // 2. PLATAFORMAS Y PUERTA
-        this.load.image('bloque', 'fotos/flores.jpg');
-        this.load.image('puerta', 'fotos/puerta.jpg');
-        
-        // 3. LLAVE (Intentamos cargarla, si falla, usaremos un gráfico generado)
-        this.load.image('llave', 'fotos/llave.png');
-    }
-
-    function create() {
-        // --- 1. GENERADOR DE RESPALDO (Por si falta alguna imagen) ---
-        let g = this.make.graphics({x:0, y:0, add: false});
-
-        // Pincho (Triángulo Rojo)
-        g.clear(); g.fillStyle(0xff0000, 1);
-        g.beginPath(); g.moveTo(0, 32); g.lineTo(16, 0); g.lineTo(32, 32); g.closePath(); g.fillPath();
-        g.generateTexture('spikeTex', 32, 32);
-
-        // Llave Genérica (Por si no carga la imagen llave.png)
-        g.clear(); g.fillStyle(0xffd700, 1); g.fillCircle(12, 12, 12); 
-        g.lineStyle(2, 0xffffff, 1); g.strokeCircle(12, 12, 12);
-        g.generateTexture('keyGen', 24, 24);
-
-        // Personaje (Color Variable)
-        let savedColor = localStorage.getItem('skinColor') || '0x00ffff';
-        let playerColor = parseInt(savedColor, 16);
-        g.clear(); g.fillStyle(playerColor, 1); g.fillRect(0, 0, 24, 36); 
-        g.generateTexture('dudeTex', 24, 36);
-
-        // --- 2. FONDO Y MUNDO ---
-        this.physics.world.setBounds(0, 0, 360, 540); 
-
-        // FONDO (Bosque)
-        // Lo ponemos centrado y lo estiramos para cubrir todo
-        let bg = this.add.image(180, 320, 'fondo');
-        bg.displayWidth = 360;
-        bg.displayHeight = 640;
-        bg.setDepth(-10);
-
-        // --- 3. NIVEL ---
-        platforms = this.physics.add.staticGroup();
-        spikes = this.physics.add.staticGroup();
-
-        // SUELO BASE (Usamos flores.jpg estirado)
-        let suelo = platforms.create(180, 530, 'bloque');
-        suelo.displayWidth = 360;
-        suelo.displayHeight = 40;
-        suelo.refreshBody();
-
-        // PAREDES INVISIBLES
-        let wallL = platforms.create(-10, 270, null); wallL.displayWidth = 20; wallL.displayHeight = 640; wallL.refreshBody();
-        let wallR = platforms.create(370, 270, null); wallR.displayWidth = 20; wallR.displayHeight = 640; wallR.refreshBody();
-        let wallT = platforms.create(180, -10, null); wallT.displayWidth = 360; wallT.displayHeight = 20; wallT.refreshBody();
-
-        // PLATAFORMAS (Usando flores.jpg)
-        createTilePlatform(this, 90, 430, 3);
-        createTilePlatform(this, 270, 430, 3);
-
-        createTilePlatform(this, 180, 330, 4);
-        spikes.create(180, 314, 'spikeTex'); // Trampa
-
-        createTilePlatform(this, 80, 230, 3);
-        createTilePlatform(this, 280, 230, 3);
-
-        createTilePlatform(this, 180, 130, 4);
-
-        // --- 4. OBJETOS ---
-        
-        // LLAVE (Lógica inteligente)
-        // Verificamos si la imagen 'llave' cargó correctamente. Si no, usamos 'keyGen'.
-        let keyTexture = this.textures.exists('llave') ? 'llave' : 'keyGen';
-        
-        keyItem = this.physics.add.image(80, 200, keyTexture);
-        keyItem.body.allowGravity = false; // FLOTA (No se cae)
-        this.tweens.add({ targets: keyItem, y: keyItem.y - 10, duration: 1000, yoyo: true, repeat: -1 });
-
-        // PUERTA
-        door = this.physics.add.staticImage(180, 95, 'puerta');
-        door.displayWidth = 40; door.displayHeight = 60; door.refreshBody();
-
-        // JUGADOR
-        player = this.physics.add.sprite(180, 480, 'dudeTex');
-        player.setBounce(0.1);
-        player.setCollideWorldBounds(true);
-
-        // --- 5. COLISIONES ---
-        this.physics.add.collider(player, platforms);
-        this.physics.add.overlap(player, spikes, takeDamage, null, this);
-        this.physics.add.overlap(player, keyItem, collectKey, null, this);
-        this.physics.add.overlap(player, door, enterDoor, null, this);
-
-        // --- 6. CONTROLES ---
-        cursors = this.input.keyboard.createCursorKeys();
-        createInterface(this);
-    }
-
-    function createTilePlatform(scene, x, y, numBlocks) {
-        const blockSize = 32; 
-        let startX = x - ((numBlocks * blockSize) / 2) + (blockSize / 2);
-        for (let i = 0; i < numBlocks; i++) {
-            let b = platforms.create(startX + (i * blockSize), y, 'bloque');
-            b.displayWidth = blockSize; b.displayHeight = blockSize; b.refreshBody();
         }
-    }
 
-    function update() {
-        if (isGameOver) return;
-        player.setVelocityX(0);
-
-        const isLeft = moveLeft || cursors.left.isDown;
-        const isRight = moveRight || cursors.right.isDown;
-        const isJump = jump || cursors.up.isDown || cursors.space.isDown;
-
-        if (isLeft) player.setVelocityX(-200);
-        else if (isRight) player.setVelocityX(200);
-
-        if (isJump && (player.body.touching.down || player.body.blocked.down)) {
-            player.setVelocityY(-550);
-            jump = false; 
+        if (isMobile) {
+            canvas.addEventListener('touchstart', handleTouch, { passive: false });
+            canvas.addEventListener('touchmove', handleTouch, { passive: false });
+            canvas.addEventListener('touchend', handleTouch, { passive: false });
+            canvas.addEventListener('touchcancel', handleTouch, { passive: false });
         }
-        txtLives.setText('VIDAS: ' + lives);
-    }
 
-    function takeDamage() {
-        lives--;
-        player.setTint(0xff0000);
-        player.setVelocityY(-300);
-        player.x = 180; player.y = 480; 
-        this.time.delayedCall(500, () => player.clearTint());
-        if (lives <= 0) gameOver("💀 GAME OVER");
-    }
+        // Click para desktop (MENU)
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = WIDTH / rect.width;
+            const scaleY = HEIGHT / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            if (x >= WIDTH - 90 && x <= WIDTH - 10 && y >= 10 && y <= 50) {
+                showMenu();
+            }
+        });
 
-    function collectKey(player, key) {
-        key.disableBody(true, true);
-        hasKey = true;
-        door.setTint(0x00ff00);
-        txtInfo.setText("¡VE A LA PUERTA!");
-    }
+        // Colisiones
+        function rectCollide(r1, r2) {
+            return r1.x < r2.x + r2.width && r1.x + r1.width > r2.x &&
+                   r1.y < r2.y + r2.height && r1.y + r1.height > r2.y;
+        }
 
-    function enterDoor() {
-        if (hasKey) gameOver("🏆 ¡GANASTE!");
-        else txtInfo.setText("🔒 FALTA LLAVE");
-    }
+        // Update
+        function update() {
+            if (!gameActive || gameWon) return;
 
-    function gameOver(msg) {
-        isGameOver = true;
-        this.physics.pause();
-        alert(msg);
-        location.reload();
-    }
+            const leftPressed = leftTouches.size > 0 || keys[37] || keys[65];
+            const rightPressed = rightTouches.size > 0 || keys[39] || keys[68];
+            const jumpPressed = jumpTouches.size > 0 || keys[32] || keys[38] || keys[87];
 
-    function createInterface(scene) {
-        // UI Container FIJO
-        uiContainer = scene.add.container(0, 0).setScrollFactor(0).setDepth(9999);
+            if (leftPressed) player.vx -= ACCEL;
+            if (rightPressed) player.vx += ACCEL;
+            if (jumpPressed && player.onGround) {
+                player.vy = JUMP_FORCE;
+                player.onGround = false;
+            }
 
-        // Fondo Barra Negra
-        let bottomBar = scene.add.graphics();
-        bottomBar.fillStyle(0x111111, 1);
-        bottomBar.fillRect(0, 540, 360, 100);
-        bottomBar.lineStyle(2, 0x00ff00);
-        bottomBar.lineBetween(0, 540, 360, 540);
-        uiContainer.add(bottomBar);
+            player.vx *= FRICTION;
+            player.vx = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, player.vx));
 
-        // Textos
-        txtLives = scene.add.text(10, 10, 'VIDAS: 3', { fontSize: '16px', color: '#ff4444', fontStyle: 'bold' });
-        txtInfo = scene.add.text(180, 10, 'BUSCA LA LLAVE', { fontSize: '14px', color: '#ffff00' }).setOrigin(0.5, 0);
-        uiContainer.add([txtLives, txtInfo]);
+            player.x += player.vx;
+            if (player.x < 0) player.x = 0;
+            if (player.x > WIDTH - PLAYER_SIZE) player.x = WIDTH - PLAYER_SIZE;
 
-        // Botones
-        const btnY = 590; 
-        let btnL = createBtn(scene, 60, btnY, '<', 0x333333, () => moveLeft=true, () => moveLeft=false);
-        let btnR = createBtn(scene, 140, btnY, '>', 0x333333, () => moveRight=true, () => moveRight=false);
-        let btnJ = createBtn(scene, 290, btnY, 'SALTAR', 0xaa0000, () => jump=true, () => jump=false, 40);
+            for (let obs of obstacles) {
+                if (rectCollide(player, obs)) {
+                    if (player.vx > 0) player.x = obs.x - player.width;
+                    else if (player.vx < 0) player.x = obs.x + obs.width;
+                    player.vx = 0;
+                }
+            }
 
-        uiContainer.add([btnL, btnR, btnJ]);
-    }
+            player.vy += GRAVITY;
+            player.y += player.vy;
+            player.onGround = false;
 
-    function createBtn(scene, x, y, text, color, downFn, upFn, radius = 35) {
-        let btn = scene.add.container(x, y);
-        let circle = scene.add.circle(0, 0, radius, color).setStrokeStyle(2, 0xffffff);
-        let label = scene.add.text(0, 0, text, { fontSize: '14px', fontStyle: 'bold' }).setOrigin(0.5);
-        
-        let hit = scene.add.circle(0, 0, radius + 10, 0x000000, 0).setInteractive();
-        hit.on('pointerdown', () => { downFn(); btn.y += 4; });
-        hit.on('pointerup', () => { upFn(); btn.y -= 4; });
-        hit.on('pointerout', () => { upFn(); btn.y -= 4; });
+            if (player.y >= GROUND - player.height) {
+                player.y = GROUND - player.height;
+                player.vy = 0;
+                player.onGround = true;
+            } else {
+                for (let obs of obstacles) {
+                    if (rectCollide(player, obs)) {
+                        if (player.vy > 0) {
+                            player.y = obs.y - player.height;
+                            player.vy = 0;
+                            player.onGround = true;
+                            break;
+                        } else {
+                            player.vy = 0;
+                        }
+                    }
+                }
+            }
 
-        btn.add([circle, label, hit]);
-        return btn;
-    }
-</script>
+            if (rectCollide(player, door)) {
+                gameWon = true;
+            }
 
+            if (keys[82]) reset(); // R reinicia
+        }
+
+        // Draw
+        function draw() {
+            // Fondo
+            const grad = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+            grad.addColorStop(0, '#87CEEB');
+            grad.addColorStop(1, '#98D8E9');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+            // Suelo
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(0, GROUND, WIDTH, HEIGHT - GROUND);
+
+            // Obstáculos
+            ctx.fillStyle = '#666';
+            obstacles.forEach(obs => {
+                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                ctx.strokeStyle = '#444';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+            });
+
+            // Puerta
+            ctx.fillStyle = '#FFD700';
+            ctx.fillRect(door.x, door.y, door.width, door.height);
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(door.x + 8, door.y + 15, 24, 50);
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(door.x, door.y, door.width, door.height);
+
+            // Jugador
+            ctx.fillStyle = '#FF6B35';
+            ctx.shadowColor = '#FF8C42';
+            ctx.shadowBlur = 10;
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(player.x, player.y, player.width, player.height);
+
+            // Botón MENU (siempre visible en juego)
+            ctx.fillStyle = '#FF4444';
+            ctx.fillRect(WIDTH - 90, 10, 80, 40);
+            ctx.strokeStyle = '#FFF';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(WIDTH - 90, 10, 80, 40);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 22px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('MENU', WIDTH - 50, 30);
+
+            // Instrucciones
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            ctx.fillRect(20, HEIGHT - 70, WIDTH - 40, 55);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 20px Arial';
+            ctx.fillText('Toca ← → ↑  o  Teclas', WIDTH / 2, HEIGHT - 42);
+            ctx.font = '18px Arial';
+            ctx.fillText('MENU para salir al menú', WIDTH / 2, HEIGHT - 20);
+
+            // Victoria
+            if (gameWon) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, WIDTH, HEIGHT);
+                ctx.fillStyle = '#FFD700';
+                ctx.shadowColor = '#FFA500';
+                ctx.shadowBlur = 20;
+                ctx.font = 'bold 64px Arial';
+                ctx.fillText('¡Ganaste!', WIDTH / 2, HEIGHT / 2 - 20);
+                ctx.shadowBlur = 0;
+                ctx.font = 'bold 32px Arial';
+                ctx.fillStyle = 'white';
+                ctx.fillText('Toca MENU para volver', WIDTH / 2, HEIGHT / 2 + 60);
+            }
+
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
+        }
+
+        // Botones táctiles en draw (solo si gameActive)
+        if (isMobile && gameActive) {
+            // Se dibujan en draw
+            const btnY = HEIGHT - 100;
+            const btnSize = 80;
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#000';
+            ctx.font = 'bold 40px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // ←
+            ctx.fillStyle = leftTouches.size > 0 ? '#FF4444' : 'rgba(255, 100, 100, 0.8)';
+            ctx.fillRect(50, btnY, btnSize, btnSize);
+            ctx.strokeRect(50, btnY, btnSize, btnSize);
+            ctx.fillStyle = 'white';
+            ctx.fillText('←', 50 + btnSize / 2, btnY + btnSize / 2);
+
+            // →
+            const rightX = 50 + btnSize + 10;
+            ctx.fillStyle = rightTouches.size > 0 ? '#44FF44' : 'rgba(100, 255, 100, 0.8)';
+            ctx.fillRect(rightX, btnY, btnSize, btnSize);
+            ctx.strokeRect(rightX, btnY, btnSize, btnSize);
+            ctx.fillStyle = 'white';
+            ctx.fillText('→', rightX + btnSize / 2, btnY + btnSize / 2);
+
+            // ↑
+            const jumpX = WIDTH - 50 - btnSize;
+            ctx.fillStyle = jumpTouches.size > 0 ? '#4444FF' : 'rgba(100, 100, 255, 0.8)';
+            ctx.beginPath();
+            ctx.arc(jumpX + btnSize / 2, btnY + btnSize / 2, btnSize / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = 'white';
+            ctx.fillText('↑', jumpX + btnSize / 2, btnY + btnSize / 2);
+
+            ctx.textAlign = 'left';
+        }
+
+        // Bucle principal
+        function gameLoop() {
+            update();
+            if (canvas.style.display !== 'none') {
+                draw();
+            }
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Resize (mantiene lógico fijo)
+        window.addEventListener('resize', () => {
+            // CSS maneja escalado
+        });
+
+        gameLoop();
+    </script>
 </body>
 </html>
