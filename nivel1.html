@@ -53,6 +53,7 @@
         let hazards = [];
         let gems = [];
         let particles = [];
+        let door;
 
         // Controles
         const keys = {};
@@ -79,33 +80,28 @@
             FRICTION = 0.86;
             MAX_SPEED = PLAYER_SIZE * 0.22;
 
-            // Resetear posiciones escaladas
             resetLevel();
             resetPlayer();
         }
 
         function resetLevel() {
-            // Plataformas (estilo madera)
             platforms = [
                 { x: WORLD_WIDTH * 0.28, y: GROUND - PLAYER_SIZE * 1.7, width: PLAYER_SIZE * 1.4, height: PLAYER_SIZE * 0.6 },
                 { x: WORLD_WIDTH * 0.48, y: GROUND - PLAYER_SIZE * 2.4, width: PLAYER_SIZE * 1.4, height: PLAYER_SIZE * 0.6 },
                 { x: WORLD_WIDTH * 0.72, y: GROUND - PLAYER_SIZE * 1.4, width: PLAYER_SIZE * 1.6, height: PLAYER_SIZE * 0.6 }
             ];
 
-            // Peligros (agua azul)
             hazards = [
                 { x: WORLD_WIDTH * 0.22, y: GROUND - PLAYER_SIZE * 0.9, width: PLAYER_SIZE * 2.2, height: PLAYER_SIZE * 0.9 },
                 { x: WORLD_WIDTH * 0.65, y: GROUND - PLAYER_SIZE * 0.9, width: PLAYER_SIZE * 1.8, height: PLAYER_SIZE * 0.9 }
             ];
 
-            // Gemas rojas brillantes
             gems = [
                 { x: WORLD_WIDTH * 0.32, y: GROUND - PLAYER_SIZE * 4.2, width: PLAYER_SIZE * 0.7, height: PLAYER_SIZE * 0.7, collected: false },
                 { x: WORLD_WIDTH * 0.51, y: GROUND - PLAYER_SIZE * 5, width: PLAYER_SIZE * 0.7, height: PLAYER_SIZE * 0.7, collected: false },
                 { x: WORLD_WIDTH * 0.76, y: GROUND - PLAYER_SIZE * 3.8, width: PLAYER_SIZE * 0.7, height: PLAYER_SIZE * 0.7, collected: false }
             ];
 
-            // Puerta
             door = { x: WORLD_WIDTH - PLAYER_SIZE * 2.5, y: GROUND - PLAYER_SIZE * 3, width: PLAYER_SIZE * 1.6, height: PLAYER_SIZE * 3, open: false };
         }
 
@@ -128,12 +124,10 @@
                    a.y < b.y + b.height &&
                    a.y + a.height > b.y;
         }
-
         // Update
         function update() {
             if (gameWon) return;
 
-            // Input
             const left = leftTouches.size > 0 || keys[37] || keys[65];
             const right = rightTouches.size > 0 || keys[39] || keys[68];
             const jump = jumpTouches.size > 0 || keys[32] || keys[38] || keys[87];
@@ -147,11 +141,9 @@
 
             player.vx *= FRICTION;
 
-            // Horizontal
             player.x += player.vx;
             player.x = Math.max(0, Math.min(WORLD_WIDTH - player.width, player.x));
 
-            // Colisiones laterales plataformas/hazards
             for (let plat of platforms) {
                 if (rectCollide(player, plat)) {
                     if (player.vx > 0) player.x = plat.x - player.width;
@@ -166,18 +158,15 @@
                 }
             }
 
-            // Vertical
             player.vy += GRAVITY;
             player.y += player.vy;
             player.onGround = false;
 
-            // Suelo
             if (player.y >= GROUND - player.height) {
                 player.y = GROUND - player.height;
                 player.vy = 0;
                 player.onGround = true;
             } else {
-                // Plataformas
                 for (let plat of platforms) {
                     if (rectCollide(player, plat)) {
                         if (player.vy > 0) {
@@ -192,7 +181,6 @@
                 }
             }
 
-            // Gemas
             for (let gem of gems) {
                 if (!gem.collected && rectCollide(player, gem)) {
                     gem.collected = true;
@@ -200,17 +188,14 @@
                 }
             }
 
-            // Puerta
             if (rectCollide(player, door) && gemsCollected === totalGems) {
                 gameWon = true;
             }
 
-            // Cámara suave
             camTarget = player.x + player.width / 2 - WIDTH / 2;
             camTarget = Math.max(0, Math.min(camTarget, WORLD_WIDTH - WIDTH));
             camX += (camTarget - camX) * 0.12;
 
-            // Partículas fuego
             emitParticles();
             updateParticles();
         }
@@ -242,12 +227,11 @@
             });
         }
 
-        // Dibujar
+        // Dibujar (continúa aquí con la función draw completa)
         function draw() {
             ctx.save();
             ctx.translate(-camX, 0);
 
-            // Fondo cueva Fireboy-style
             const bgGrad = ctx.createRadialGradient(
                 WIDTH / 2 + camX, HEIGHT / 2, 0,
                 WIDTH / 2 + camX, HEIGHT / 2, Math.hypot(WIDTH, WORLD_HEIGHT) / 1.5
@@ -259,7 +243,6 @@
             ctx.fillStyle = bgGrad;
             ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
-            // Suelo madera
             ctx.fillStyle = '#5D4037';
             ctx.fillRect(0, GROUND, WORLD_WIDTH, WORLD_HEIGHT - GROUND);
             ctx.strokeStyle = '#8D6E63';
@@ -271,14 +254,12 @@
                 ctx.stroke();
             }
 
-            // Plataformas madera
             ctx.fillStyle = '#8B4513';
             for (let plat of platforms) {
                 ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
                 ctx.strokeStyle = '#A0522D';
                 ctx.lineWidth = 1.5;
                 ctx.strokeRect(plat.x, plat.y, plat.width, plat.height);
-                // Líneas madera
                 ctx.strokeStyle = '#654321';
                 for (let ly = plat.y + 6; ly < plat.y + plat.height; ly += 12) {
                     ctx.beginPath();
@@ -288,7 +269,6 @@
                 }
             }
 
-            // Hazards agua
             for (let haz of hazards) {
                 const waterGrad = ctx.createLinearGradient(haz.x, haz.y, haz.x, haz.y + haz.height);
                 waterGrad.addColorStop(0, '#4169E1');
@@ -297,7 +277,6 @@
                 ctx.beginPath();
                 ctx.roundRect(haz.x + 5, haz.y, haz.width - 10, haz.height, 20);
                 ctx.fill();
-                // Olas
                 ctx.strokeStyle = 'rgba(255,255,255,0.3)';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
@@ -306,7 +285,6 @@
                 ctx.stroke();
             }
 
-            // Gemas
             gems.forEach((gem, i) => {
                 if (!gem.collected) {
                     const shine = 1 + 0.15 * Math.sin(Date.now() * 0.008 + i);
@@ -314,7 +292,6 @@
                 }
             });
 
-            // Puerta dorada
             ctx.fillStyle = '#FFD700';
             ctx.shadowColor = '#FF8C00';
             ctx.shadowBlur = PLAYER_SIZE * 0.3;
@@ -326,7 +303,6 @@
             ctx.lineWidth = 3;
             ctx.strokeRect(door.x, door.y, door.width, door.height);
 
-            // Jugador cubo fuego
             ctx.save();
             ctx.shadowColor = 'rgba(255,100,0,0.6)';
             ctx.shadowBlur = PLAYER_SIZE * 0.4;
@@ -343,7 +319,6 @@
             ctx.strokeRect(player.x, player.y, player.width, player.height);
             ctx.restore();
 
-            // Partículas
             particles.forEach(p => {
                 const alpha = p.life / p.maxLife;
                 ctx.save();
@@ -358,7 +333,6 @@
 
             ctx.restore();
 
-            // UI overlay
             ctx.fillStyle = 'rgba(0,0,0,0.6)';
             ctx.fillRect(0, 0, WIDTH, PLAYER_SIZE * 1.5);
 
@@ -368,7 +342,6 @@
             ctx.textBaseline = 'middle';
             ctx.fillText(`Gemas: \( {gemsCollected}/ \){totalGems}`, PLAYER_SIZE * 0.5, PLAYER_SIZE * 0.75);
 
-            // Botón Restart arriba derecha
             const restartSize = PLAYER_SIZE * 1.2;
             ctx.fillStyle = '#FF4444';
             ctx.fillRect(WIDTH - restartSize * 1.1, 10, restartSize, PLAYER_SIZE);
@@ -380,13 +353,11 @@
             ctx.textAlign = 'center';
             ctx.fillText('R', WIDTH - restartSize * 0.55, PLAYER_SIZE * 0.5);
 
-            // Botones táctiles (fondo semi-trans)
             const btnSize = HEIGHT * 0.14;
             const btnMargin = WIDTH * 0.03;
             ctx.fillStyle = 'rgba(0,0,0,0.4)';
             ctx.fillRect(0, HEIGHT - btnSize * 1.1, WIDTH, btnSize * 1.1);
 
-            // ←
             ctx.fillStyle = leftTouches.size ? '#FF5555' : 'rgba(255,80,80,0.8)';
             ctx.fillRect(btnMargin, HEIGHT - btnSize - btnMargin, btnSize, btnSize);
             ctx.strokeStyle = '#000';
@@ -398,14 +369,12 @@
             ctx.textBaseline = 'middle';
             ctx.fillText('←', btnMargin + btnSize / 2, HEIGHT - btnSize - btnMargin + btnSize / 2);
 
-            // →
             const rightBtnX = btnMargin + btnSize + btnMargin * 2;
             ctx.fillStyle = rightTouches.size ? '#55FF55' : 'rgba(80,255,80,0.8)';
             ctx.fillRect(rightBtnX, HEIGHT - btnSize - btnMargin, btnSize, btnSize);
             ctx.strokeRect(rightBtnX, HEIGHT - btnSize - btnMargin, btnSize, btnSize);
             ctx.fillText('→', rightBtnX + btnSize / 2, HEIGHT - btnSize - btnMargin + btnSize / 2);
 
-            // ↑
             const jumpBtnX = WIDTH - btnSize - btnMargin;
             ctx.fillStyle = jumpTouches.size ? '#5555FF' : 'rgba(80,80,255,0.8)';
             ctx.beginPath();
@@ -419,7 +388,6 @@
 
             ctx.textAlign = 'left';
 
-            // Victoria
             if (gameWon) {
                 ctx.fillStyle = 'rgba(0,0,0,0.9)';
                 ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -465,12 +433,11 @@
         window.addEventListener('resize', resize);
         document.addEventListener('keydown', e => {
             keys[e.keyCode] = true;
-            if (e.keyCode === 82) resetPlayer(); // R
+            if (e.keyCode === 82) resetPlayer();
             e.preventDefault();
         });
         document.addEventListener('keyup', e => { keys[e.keyCode] = false; e.preventDefault(); });
 
-        // Touch
         function handleTouch(e) {
             e.preventDefault();
             const touches = e.changedTouches;
@@ -503,4 +470,35 @@
                     rightTouches.add(id);
                 } else if (x > jumpRect.x && x < jumpRect.x + jumpRect.w && y > jumpRect.y && y < jumpRect.y + jumpRect.h) {
                     jumpTouches.add(id);
-                } else if (x > restartRect
+                } else if (x > restartRect.x && x < restartRect.x + restartRect.w && y > restartRect.y && y < restartRect.y + restartRect.h) {
+                    resetPlayer();
+                }
+            }
+        }
+
+        canvas.addEventListener('touchstart', handleTouch, {passive: false});
+        canvas.addEventListener('touchmove', handleTouch, {passive: false});
+        canvas.addEventListener('touchend', handleTouch, {passive: false});
+        canvas.addEventListener('touchcancel', handleTouch, {passive: false});
+
+        canvas.addEventListener('click', e => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const restartSize = PLAYER_SIZE * 1.2;
+            if (x > WIDTH - restartSize * 1.1 && x < WIDTH && y > 10 && y < PLAYER_SIZE + 10) {
+                resetPlayer();
+            }
+        });
+
+        // Iniciar
+        resize();
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+        loop();
+    </script>
+</body>
+</html>
