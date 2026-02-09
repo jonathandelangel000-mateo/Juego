@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nivel 1 - Bosque Vertical</title>
+    <title>Nivel 1 - El Bosque</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
     <style>
         body { margin: 0; background-color: #000; overflow: hidden; touch-action: none; }
@@ -17,7 +17,7 @@
         type: Phaser.AUTO,
         width: 360,
         height: 640,
-        backgroundColor: '#111',
+        backgroundColor: '#000',
         scale: {
             mode: Phaser.Scale.FIT,
             autoCenter: Phaser.Scale.CENTER_BOTH
@@ -53,17 +53,20 @@
     const game = new Phaser.Game(config);
 
     function preload() {
-        // --- CARGA DE IMÁGENES (Desde carpeta 'fotos') ---
-        // Ajustado a los nombres que pediste
-        this.load.image('bloque', 'fotos/flores.jpg');    // Antes bloque.png
-        this.load.image('suelo', 'fotos/suelo.png');      // Mantenemos suelo si existe, o se puede cambiar
-        this.load.image('puerta', 'fotos/puerta.jpg');    // Corregido a .jpg
-        this.load.image('llave', 'fotos/llave.png');      // Asumo .png, si es jpg cámbialo aquí
-        this.load.image('fondo', 'fotos/bosque.jpg');     // Nuevo fondo
+        // --- CARGA DE IMÁGENES ---
+        // 1. FONDO (Tu imagen nueva)
+        this.load.image('fondo', 'fotos/bosque.jpg');
+        
+        // 2. PLATAFORMAS Y PUERTA
+        this.load.image('bloque', 'fotos/flores.jpg');
+        this.load.image('puerta', 'fotos/puerta.jpg');
+        
+        // 3. LLAVE (Intentamos cargarla, si falla, usaremos un gráfico generado)
+        this.load.image('llave', 'fotos/llave.png');
     }
 
     function create() {
-        // Generador de gráficos de respaldo
+        // --- 1. GENERADOR DE RESPALDO (Por si falta alguna imagen) ---
         let g = this.make.graphics({x:0, y:0, add: false});
 
         // Pincho (Triángulo Rojo)
@@ -71,108 +74,97 @@
         g.beginPath(); g.moveTo(0, 32); g.lineTo(16, 0); g.lineTo(32, 32); g.closePath(); g.fillPath();
         g.generateTexture('spikeTex', 32, 32);
 
-        // Personaje (Color Variable del Menú)
+        // Llave Genérica (Por si no carga la imagen llave.png)
+        g.clear(); g.fillStyle(0xffd700, 1); g.fillCircle(12, 12, 12); 
+        g.lineStyle(2, 0xffffff, 1); g.strokeCircle(12, 12, 12);
+        g.generateTexture('keyGen', 24, 24);
+
+        // Personaje (Color Variable)
         let savedColor = localStorage.getItem('skinColor') || '0x00ffff';
         let playerColor = parseInt(savedColor, 16);
         g.clear(); g.fillStyle(playerColor, 1); g.fillRect(0, 0, 24, 36); 
         g.generateTexture('dudeTex', 24, 36);
 
-        // --- 1. LÍMITES Y FONDO ---
+        // --- 2. FONDO Y MUNDO ---
         this.physics.world.setBounds(0, 0, 360, 540); 
 
         // FONDO (Bosque)
-        // Lo estiramos para que cubra toda la zona de juego (360x540)
-        let bg = this.add.image(180, 270, 'fondo');
+        // Lo ponemos centrado y lo estiramos para cubrir todo
+        let bg = this.add.image(180, 320, 'fondo');
         bg.displayWidth = 360;
-        bg.displayHeight = 540;
-        bg.setDepth(-1); // Para que quede detrás de todo
+        bg.displayHeight = 640;
+        bg.setDepth(-10);
 
-        // --- 2. DISEÑO DEL NIVEL (VERTICAL) ---
+        // --- 3. NIVEL ---
         platforms = this.physics.add.staticGroup();
         spikes = this.physics.add.staticGroup();
 
-        // SUELO BASE
-        // Usamos 'bloque' (flores) estirado si no hay imagen de suelo específica, 
-        // o la imagen 'suelo' si ya la tienes. Aquí uso 'bloque' para asegurar que se vea algo.
-        // Si prefieres usar 'suelo.png', cambia 'bloque' por 'suelo'.
-        let suelo = platforms.create(180, 530, 'bloque'); 
-        suelo.displayWidth = 360; 
-        suelo.displayHeight = 40; 
+        // SUELO BASE (Usamos flores.jpg estirado)
+        let suelo = platforms.create(180, 530, 'bloque');
+        suelo.displayWidth = 360;
+        suelo.displayHeight = 40;
         suelo.refreshBody();
 
         // PAREDES INVISIBLES
-        let wallL = platforms.create(-10, 270, null); wallL.displayWidth = 20; wallL.displayHeight = 540; wallL.refreshBody();
-        let wallR = platforms.create(370, 270, null); wallR.displayWidth = 20; wallR.displayHeight = 540; wallR.refreshBody();
+        let wallL = platforms.create(-10, 270, null); wallL.displayWidth = 20; wallL.displayHeight = 640; wallL.refreshBody();
+        let wallR = platforms.create(370, 270, null); wallR.displayWidth = 20; wallR.displayHeight = 640; wallR.refreshBody();
         let wallT = platforms.create(180, -10, null); wallT.displayWidth = 360; wallT.displayHeight = 20; wallT.refreshBody();
 
+        // PLATAFORMAS (Usando flores.jpg)
+        createTilePlatform(this, 90, 430, 3);
+        createTilePlatform(this, 270, 430, 3);
 
-        // --- PLATAFORMAS DE BLOQUES (FLORES) ---
-        
-        // Piso 1
-        createTilePlatform(this, 100, 430, 3); 
-        createTilePlatform(this, 260, 430, 3); 
-
-        // Piso 2 (Centro con trampa)
         createTilePlatform(this, 180, 330, 4);
-        spikes.create(180, 314, 'spikeTex');
+        spikes.create(180, 314, 'spikeTex'); // Trampa
 
-        // Piso 3
         createTilePlatform(this, 80, 230, 3);
         createTilePlatform(this, 280, 230, 3);
 
-        // Piso 4 (Meta)
-        createTilePlatform(this, 180, 130, 5);
+        createTilePlatform(this, 180, 130, 4);
 
-
-        // --- 3. OBJETIVOS ---
+        // --- 4. OBJETOS ---
         
-        // LLAVE
-        keyItem = this.physics.add.image(80, 200, 'llave');
-        keyItem.body.allowGravity = false; 
+        // LLAVE (Lógica inteligente)
+        // Verificamos si la imagen 'llave' cargó correctamente. Si no, usamos 'keyGen'.
+        let keyTexture = this.textures.exists('llave') ? 'llave' : 'keyGen';
+        
+        keyItem = this.physics.add.image(80, 200, keyTexture);
+        keyItem.body.allowGravity = false; // FLOTA (No se cae)
         this.tweens.add({ targets: keyItem, y: keyItem.y - 10, duration: 1000, yoyo: true, repeat: -1 });
-        
+
         // PUERTA
         door = this.physics.add.staticImage(180, 95, 'puerta');
-        // Ajustamos tamaño si es muy grande
-        door.displayWidth = 40;
-        door.displayHeight = 60;
-        door.refreshBody();
-        
+        door.displayWidth = 40; door.displayHeight = 60; door.refreshBody();
+
         // JUGADOR
         player = this.physics.add.sprite(180, 480, 'dudeTex');
         player.setBounce(0.1);
         player.setCollideWorldBounds(true);
 
-        // --- 4. COLISIONES ---
+        // --- 5. COLISIONES ---
         this.physics.add.collider(player, platforms);
         this.physics.add.overlap(player, spikes, takeDamage, null, this);
         this.physics.add.overlap(player, keyItem, collectKey, null, this);
         this.physics.add.overlap(player, door, enterDoor, null, this);
 
-        // --- 5. CONTROLES ---
+        // --- 6. CONTROLES ---
         cursors = this.input.keyboard.createCursorKeys();
         createInterface(this);
     }
 
     function createTilePlatform(scene, x, y, numBlocks) {
-        // Asumiendo que tus bloques son cuadrados, ajusta este tamaño si es necesario
-        // Si flores.jpg es muy grande, Phaser lo usará tal cual. 
-        // Aquí forzamos un tamaño estándar de 32x32 para que el nivel se vea bien.
         const blockSize = 32; 
         let startX = x - ((numBlocks * blockSize) / 2) + (blockSize / 2);
-
         for (let i = 0; i < numBlocks; i++) {
             let b = platforms.create(startX + (i * blockSize), y, 'bloque');
-            b.displayWidth = blockSize;
-            b.displayHeight = blockSize;
-            b.refreshBody();
+            b.displayWidth = blockSize; b.displayHeight = blockSize; b.refreshBody();
         }
     }
 
     function update() {
         if (isGameOver) return;
-
         player.setVelocityX(0);
+
         const isLeft = moveLeft || cursors.left.isDown;
         const isRight = moveRight || cursors.right.isDown;
         const isJump = jump || cursors.up.isDown || cursors.space.isDown;
@@ -193,22 +185,19 @@
         player.setVelocityY(-300);
         player.x = 180; player.y = 480; 
         this.time.delayedCall(500, () => player.clearTint());
-        if (lives <= 0) gameOver("💀 INTÉNTALO DE NUEVO");
+        if (lives <= 0) gameOver("💀 GAME OVER");
     }
 
     function collectKey(player, key) {
         key.disableBody(true, true);
         hasKey = true;
-        door.setTint(0x00ff00); 
+        door.setTint(0x00ff00);
         txtInfo.setText("¡VE A LA PUERTA!");
     }
 
     function enterDoor() {
-        if (hasKey) {
-            gameOver("🏆 ¡NIVEL COMPLETADO!");
-        } else {
-            txtInfo.setText("🔒 FALTA LLAVE");
-        }
+        if (hasKey) gameOver("🏆 ¡GANASTE!");
+        else txtInfo.setText("🔒 FALTA LLAVE");
     }
 
     function gameOver(msg) {
@@ -219,17 +208,10 @@
     }
 
     function createInterface(scene) {
+        // UI Container FIJO
         uiContainer = scene.add.container(0, 0).setScrollFactor(0).setDepth(9999);
 
-        let topBar = scene.add.graphics();
-        topBar.fillStyle(0x000000, 0.7);
-        topBar.fillRect(0, 0, 360, 30);
-        uiContainer.add(topBar);
-
-        txtLives = scene.add.text(10, 5, 'VIDAS: 3', { fontSize: '16px', color: '#ff4444', fontStyle: 'bold' });
-        txtInfo = scene.add.text(150, 5, 'BUSCA LA LLAVE', { fontSize: '14px', color: '#ffff00' });
-        uiContainer.add([txtLives, txtInfo]);
-
+        // Fondo Barra Negra
         let bottomBar = scene.add.graphics();
         bottomBar.fillStyle(0x111111, 1);
         bottomBar.fillRect(0, 540, 360, 100);
@@ -237,19 +219,24 @@
         bottomBar.lineBetween(0, 540, 360, 540);
         uiContainer.add(bottomBar);
 
+        // Textos
+        txtLives = scene.add.text(10, 10, 'VIDAS: 3', { fontSize: '16px', color: '#ff4444', fontStyle: 'bold' });
+        txtInfo = scene.add.text(180, 10, 'BUSCA LA LLAVE', { fontSize: '14px', color: '#ffff00' }).setOrigin(0.5, 0);
+        uiContainer.add([txtLives, txtInfo]);
+
+        // Botones
         const btnY = 590; 
         let btnL = createBtn(scene, 60, btnY, '<', 0x333333, () => moveLeft=true, () => moveLeft=false);
         let btnR = createBtn(scene, 140, btnY, '>', 0x333333, () => moveRight=true, () => moveRight=false);
-        let btnJ = createBtn(scene, 290, btnY, 'JUMP', 0xaa0000, () => jump=true, () => jump=false, 40);
+        let btnJ = createBtn(scene, 290, btnY, 'SALTAR', 0xaa0000, () => jump=true, () => jump=false, 40);
+
         uiContainer.add([btnL, btnR, btnJ]);
     }
 
     function createBtn(scene, x, y, text, color, downFn, upFn, radius = 35) {
         let btn = scene.add.container(x, y);
         let circle = scene.add.circle(0, 0, radius, color).setStrokeStyle(2, 0xffffff);
-        let fontSize = text.length > 2 ? '14px' : '20px';
-        let label = scene.add.text(-10, -10, text, { fontSize: fontSize, fontStyle: 'bold' });
-        if(text.length > 2) label.x = -18; 
+        let label = scene.add.text(0, 0, text, { fontSize: '14px', fontStyle: 'bold' }).setOrigin(0.5);
         
         let hit = scene.add.circle(0, 0, radius + 10, 0x000000, 0).setInteractive();
         hit.on('pointerdown', () => { downFn(); btn.y += 4; });
