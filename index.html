@@ -2,273 +2,150 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Menú Principal - Jonathan Del Angel</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Focus Bird - Cargando...</title>
     <style>
-        /* --- ESTILOS GENERALES --- */
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #050505;
-            font-family: 'Orbitron', sans-serif;
-            overflow: hidden; /* Sin scrollbars */
-            color: #fff;
-        }
-
-        /* --- FONDO ANIMADO (Canvas) --- */
-        #bgCanvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 0;
-        }
-
-        /* --- CONTENEDOR DEL MENÚ --- */
-        .menu-container {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            z-index: 10;
-            width: 90%;
-            max-width: 600px;
-        }
-
-        /* --- TÍTULO PRINCIPAL --- */
-        h1 {
-            font-size: 4rem;
-            margin-bottom: 10px;
-            color: #0ff; /* Cian Neón */
-            text-transform: uppercase;
-            letter-spacing: 5px;
-            text-shadow: 
-                0 0 10px #0ff, 
-                0 0 20px #0ff, 
-                0 0 40px #009999;
-            animation: pulsate 3s infinite alternate;
-        }
-
-        .subtitle {
-            font-size: 1.2rem;
-            color: #aaa;
-            margin-bottom: 50px;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            border-bottom: 1px solid #0ff;
-            display: inline-block;
-            padding-bottom: 10px;
-        }
-
-        /* --- BOTONES DEL MENÚ --- */
-        .btn {
-            display: block;
-            width: 80%;
-            margin: 15px auto;
-            padding: 15px 0;
-            background: transparent;
-            border: 2px solid #0ff;
-            color: #0ff;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.5rem;
-            font-weight: bold;
-            text-transform: uppercase;
-            cursor: pointer;
-            position: relative;
+        :root { --acento: #00f2ff; --fondo: #0a0a0a; }
+        body, html { 
+            background: var(--fondo); 
+            color: white; 
+            margin: 0; 
+            width: 100%; 
+            height: 100%; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            font-family: 'Arial Black', sans-serif;
             overflow: hidden;
-            transition: all 0.3s ease;
-            clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%); /* Forma futurista */
         }
 
-        .btn:hover {
-            background: #0ff;
-            color: #000;
-            box-shadow: 0 0 20px #0ff;
-            transform: scale(1.05);
-        }
-
-        .btn:active {
-            transform: scale(0.98);
-        }
-
-        /* Estilo diferente para el botón salir/créditos */
-        .btn-secondary {
-            border-color: #ff0055;
-            color: #ff0055;
-        }
-        .btn-secondary:hover {
-            background: #ff0055;
+        .loader-container { text-align: center; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
+        
+        .logo-animado {
+            font-size: 3rem;
+            letter-spacing: 10px;
             color: white;
-            box-shadow: 0 0 20px #ff0055;
+            text-shadow: 0 0 20px var(--acento);
+            animation: pulse 1.5s infinite alternate;
+            margin-bottom: 20px;
         }
 
-        /* --- CRÉDITOS --- */
-        footer {
-            position: absolute;
-            bottom: 20px;
-            width: 100%;
+        @keyframes pulse {
+            from { transform: scale(1); text-shadow: 0 0 10px var(--acento); }
+            to { transform: scale(1.1); text-shadow: 0 0 30px var(--acento), 0 0 50px var(--acento); }
+        }
+
+        .bar-bg {
+            width: 250px;
+            height: 4px;
+            background: #222;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 0 auto;
+        }
+
+        .bar-fill {
+            width: 0%;
+            height: 100%;
+            background: var(--acento);
+            box-shadow: 0 0 15px var(--acento);
+            transition: width 0.3s;
+        }
+
+        .status-text {
+            font-size: 0.7rem;
+            color: var(--acento);
+            margin-top: 15px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* ESTILO DE CRÉDITOS */
+        .credits-footer {
+            padding-bottom: 30px;
             text-align: center;
-            z-index: 10;
-            font-size: 0.9rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.65rem;
+            letter-spacing: 1px;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.4);
+            text-transform: uppercase;
+        }
+
+        .credits-footer b {
+            color: var(--acento);
             opacity: 0.8;
         }
 
-        .dev-name {
-            color: #ffcc00;
-            font-weight: bold;
-            text-decoration: none;
-            position: relative;
-            padding: 5px 10px;
-            transition: 0.3s;
-        }
-
-        .dev-name::before {
-            content: '{ ';
-            color: #fff;
-        }
-        .dev-name::after {
-            content: ' }';
-            color: #fff;
-        }
-
-        .dev-name:hover {
-            color: #fff;
-            text-shadow: 0 0 10px #ffcc00;
-        }
-
-        /* --- ANIMACIONES --- */
-        @keyframes pulsate {
-            0% { text-shadow: 0 0 10px #0ff, 0 0 20px #0ff; transform: scale(1); }
-            100% { text-shadow: 0 0 20px #0ff, 0 0 40px #0ff, 0 0 80px #0ff; transform: scale(1.02); }
-        }
-
-        /* Ajustes para Móvil */
-        @media (max-width: 600px) {
-            h1 { font-size: 2.5rem; }
-            .btn { font-size: 1.2rem; width: 90%; }
+        .linea-neon {
+            width: 40px;
+            height: 1px;
+            background: var(--acento);
+            margin: 10px auto;
+            box-shadow: 0 0 10px var(--acento);
+            opacity: 0.3;
         }
     </style>
 </head>
 <body>
 
-    <canvas id="bgCanvas"></canvas>
-
-    <div class="menu-container">
-        <h1>NEON JUMP</h1>
-        <div class="subtitle">Ultimate Platformer</div>
-
-        <button class="btn" onclick="iniciarJuego()">▶ JUGAR</button>
-        
-        <button class="btn" onclick="seleccionarNivel()">NIVELES</button>
-        <button class="btn" onclick="opciones()">SKINS</button>
-        
-        <button class="btn btn-secondary" onclick="window.close()">SALIR</button>
+    <div class="loader-container">
+        <div class="logo-animado">FOCUS BIRD</div>
+        <div class="bar-bg">
+            <div id="bar" class="bar-fill"></div>
+        </div>
+        <div id="status" class="status-text">Iniciando sistemas...</div>
     </div>
 
-    <footer>
-        <p>Desarrollado & Diseñado por</p>
-        <a href="#" class="dev-name">JONATHAN DEL ANGEL</a>
-        <p style="font-size: 0.7rem; color: #555; margin-top: 5px;">v1.0.2 Build 2026</p>
+    <footer class="credits-footer">
+        <div class="linea-neon"></div>
+        POWERED BY <b>GEMINI AI</b><br>
+        INFRASTRUCTURE: <b>FIREBASE GOOGLE</b><br>
+        ENGINE: <b>ACODE</b>
+        <div style="margin-top: 5px; color: rgba(255,255,255,0.6); letter-spacing: 2px;">
+            DESARROLLADO POR <b>JONATHAN DEL ANGEL</b>
+        </div>
     </footer>
 
     <script>
-        // --- 1. LÓGICA DE BOTONES ---
-        function iniciarJuego() {
-            // Animación de salida
-            document.body.style.transition = "opacity 0.5s";
-            document.body.style.opacity = "0";
-            
-            setTimeout(() => {
-                // AHORA SÍ: Te manda a la pantalla de selección
-                window.location.href = "seleccionar.html"; 
-            }, 500);
-        }
+        // Simulación de carga de recursos y conexión
+        let progress = 0;
+        const bar = document.getElementById('bar');
+        const status = document.getElementById('status');
 
-        function seleccionarNivel() {
-            // También te manda a seleccionar
-            window.location.href = "seleccionar.html";
-        }
+        const steps = [
+            { p: 20, t: "Conectando a la red neón..." },
+            { p: 50, t: "Sincronizando monedas..." },
+            { p: 80, t: "Cargando skins compradas..." },
+            { p: 100, t: "¡Listo para volar!" }
+        ];
 
-        function opciones() {
-            // También te manda a seleccionar (porque ahí están las skins)
-            window.location.href = "seleccionar.html";
-        }
-
-        // --- 2. ANIMACIÓN DEL FONDO (WARP SPEED) ---
-        const canvas = document.getElementById('bgCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        let width, height;
-        let stars = [];
-        const numStars = 200; // Cantidad de estrellas
-
-        // Ajustar al tamaño de la ventana
-        function resize() {
-            width = window.innerWidth;
-            height = window.innerHeight;
-            canvas.width = width;
-            canvas.height = height;
-            initStars();
-        }
-
-        // Clase Estrella
-        class Star {
-            constructor() {
-                this.x = Math.random() * width - width / 2;
-                this.y = Math.random() * height - height / 2;
-                this.z = Math.random() * width; // Profundidad
-            }
-
-            update() {
-                // Velocidad de movimiento hacia la pantalla
-                this.z -= 10; 
-                if (this.z <= 0) {
-                    this.z = width;
-                    this.x = Math.random() * width - width / 2;
-                    this.y = Math.random() * height - height / 2;
+        function startLoading() {
+            let currentStep = 0;
+            const interval = setInterval(() => {
+                if (currentStep < steps.length) {
+                    progress = steps[currentStep].p;
+                    status.innerText = steps[currentStep].t;
+                    bar.style.width = progress + "%";
+                    currentStep++;
+                } else {
+                    clearInterval(interval);
+                    // Pequeña pausa para que se vea el 100%
+                    setTimeout(() => {
+                        window.location.href = 'flapybird.html';
+                    }, 500);
                 }
-            }
-
-            draw() {
-                // Matemáticas para proyección 3D simple
-                let x = (this.x / this.z) * width + width / 2;
-                let y = (this.y / this.z) * height + height / 2;
-                
-                // El tamaño crece mientras más cerca está
-                let radius = (width - this.z) / width * 3;
-
-                ctx.beginPath();
-                ctx.fillStyle = "white";
-                ctx.arc(x, y, radius, 0, Math.PI * 2);
-                ctx.fill();
-            }
+            }, 800);
         }
 
-        function initStars() {
-            stars = [];
-            for (let i = 0; i < numStars; i++) {
-                stars.push(new Star());
-            }
+        // Generar UUID de usuario si no existe antes de entrar
+        if(!localStorage.getItem('focusBird_userId')) {
+            const userId = 'user_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('focusBird_userId', userId);
         }
 
-        function animate() {
-            // Fondo negro con un ligero rastro (trail effect)
-            ctx.fillStyle = "rgba(5, 5, 5, 0.4)"; 
-            ctx.fillRect(0, 0, width, height);
-
-            for (let star of stars) {
-                star.update();
-                star.draw();
-            }
-            requestAnimationFrame(animate);
-        }
-
-        window.addEventListener('resize', resize);
-        resize();
-        animate();
+        window.onload = startLoading;
     </script>
 </body>
 </html>
