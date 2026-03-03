@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Focus Bird - Menú Principal</title>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
+    <style>
+        :root { 
+            --acento: #00f2ff; 
+            --fondo: #0a0a0a; 
+            --sombra-neon: rgba(0, 242, 255, 0.8); 
+            --oro: #ffd700;
+        }
+        body, html { background: var(--fondo); color: white; margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Arial Black', sans-serif; }
+        
+        /* FIX: Aseguramos que el canvas sea el fondo real */
+        canvas#menuCanvas { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100vw; 
+            height: 100vh; 
+            z-index: 1; /* Detrás de los botones pero delante del fondo negro */
+            pointer-events: none; 
+            background: var(--fondo);
+        }
+
+        /* FIX: Pantallas ahora son transparentes para dejar ver el canvas */
+        .pantalla { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100vw; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 10; 
+            background: transparent; /* Antes era sólido y tapaba todo */
+            transition: opacity 0.5s; 
+        }
+        .oculto { display: none !important; }
+        
+        .titulo-juego { font-size: clamp(2.5rem, 8vw, 4rem); font-weight: 900; color: white; text-shadow: 0 0 20px var(--acento); margin-bottom: 2rem; letter-spacing: 5px; text-align: center; }
+        
+        .menu-grid { display: grid; gap: 15px; width: 85%; max-width: 350px; z-index: 110; }
+        
+        .btn-menu { 
+            background: rgba(0,0,0,0.8); /* Más opaco para leer mejor sobre las partículas */
+            border: 2px solid var(--acento); 
+            color: white; 
+            padding: 15px; 
+            font-size: 1.1rem; 
+            font-weight: bold; 
+            cursor: pointer; 
+            border-radius: 12px; 
+            transition: all 0.3s; 
+            text-transform: uppercase; 
+            letter-spacing: 2px;
+            backdrop-filter: blur(5px);
+        }
+        .btn-menu:hover { background: var(--acento); color: black; box-shadow: 0 0 20px var(--acento); transform: scale(1.05); }
+
+        .monedas-display { position: absolute; top: 20px; right: 20px; font-size: 1.4rem; color: var(--oro); text-shadow: 0 0 10px var(--oro); z-index: 120; font-weight: bold; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; background: rgba(0,0,0,0.5); border-radius: 10px; }
+        td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .destacado { color: var(--acento); font-weight: bold; }
+        
+        .scroller { width: 90%; max-width: 400px; height: 50vh; overflow-y: auto; padding-right: 10px; }
+    </style>
+</head>
+<body>
+
+    <canvas id="menuCanvas"></canvas>
+
+    <div class="monedas-display">🪙 <span id="val-monedas">0</span></div>
+
+    <div id="pantalla-menu" class="pantalla">
+        <h1 class="titulo-juego">FOCUS BIRD</h1>
+        <div class="menu-grid">
+            <button class="btn-menu" onclick="mostrarSeccion('pantalla-dificultad')">JUGAR</button>
+            <button class="btn-menu" onclick="verRecordsLocal()">RÉCORDS LOCALES</button>
+            <button class="btn-menu" onclick="verRecordsGlobal('NORMAL')" style="border-color: #ffda44; color: #ffda44;">TOP GLOBAL 🌍</button>
+            <button class="btn-menu" onclick="window.location.href='skins.html'">SKINS</button>
+            <button class="btn-menu" onclick="window.location.href='tienda.html'" style="border-color: #00ff00; color: #00ff00;">TIENDA 🛒</button>
+        </div>
+    </div>
+
+    <div id="pantalla-dificultad" class="pantalla oculto">
+        <h2 class="titulo-juego" style="font-size: 2rem;">DIFICULTAD</h2>
+        <div class="menu-grid">
+            <button class="btn-menu" onclick="iniciarJuego('FACIL', 3.2)">FÁCIL</button>
+            <button class="btn-menu" onclick="iniciarJuego('NORMAL', 4.5)">NORMAL</button>
+            <button class="btn-menu" onclick="iniciarJuego('DIFICIL', 6.5)">DIFÍCIL</button>
+            <button class="btn-menu" style="border-color: #666;" onclick="mostrarSeccion('pantalla-menu')">VOLVER</button>
+        </div>
+    </div>
+
+    <div id="pantalla-records" class="pantalla oculto">
+        <h2 class="titulo-juego" style="font-size: 2rem;">RÉCORDS LOCALES</h2>
+        <div id="tablas-locales" class="scroller"></div>
+        <button class="btn-menu" style="margin-top:20px;" onclick="mostrarSeccion('pantalla-menu')">VOLVER</button>
+    </div>
+
+    <div id="pantalla-global" class="pantalla oculto">
+        <h2 id="titulo-global" class="titulo-juego" style="color: #ffda44; font-size: 2rem;">TOP 10</h2>
+        <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+            <button class="btn-menu" style="padding: 5px 10px; font-size: 0.7rem;" onclick="verRecordsGlobal('FACIL')">FÁCIL</button>
+            <button class="btn-menu" style="padding: 5px 10px; font-size: 0.7rem;" onclick="verRecordsGlobal('NORMAL')">NORMAL</button>
+            <button class="btn-menu" style="padding: 5px 10px; font-size: 0.7rem;" onclick="verRecordsGlobal('DIFICIL')">DIFÍCIL</button>
+        </div>
+        <div class="scroller">
+            <table id="tabla-global"></table>
+        </div>
+        <button class="btn-menu" style="margin-top:20px;" onclick="mostrarSeccion('pantalla-menu')">VOLVER</button>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyB0ahP8K53dm8BIRhjXYxCbSJ8sNfQi-NI",
+            authDomain: "refugio-de-patitas.firebaseapp.com",
+            projectId: "refugio-de-patitas",
+            storageBucket: "refugio-de-patitas.firebasestorage.app",
+            messagingSenderId: "5921473252",
+            appId: "1:5921473252:web:16f18c4c7cf1ad1509e2f1"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const canvas = document.getElementById("menuCanvas");
+        const ctx = canvas.getContext("2d");
+        let particles = [];
+
+        function actualizarDisplayMonedas() {
+            const monedas = localStorage.getItem('birdCoins') || 0;
+            document.getElementById('val-monedas').innerText = monedas;
+        }
+
+        function mostrarSeccion(id) {
+            document.querySelectorAll('.pantalla').forEach(p => p.classList.add('oculto'));
+            document.getElementById(id).classList.remove('oculto');
+        }
+
+        function iniciarJuego(dif, velocidad) {
+            window.location.href = `game.html?dif=${dif}&speed=${velocidad}`;
+        }
+
+        function verRecordsLocal() {
+            mostrarSeccion('pantalla-records');
+            const container = document.getElementById('tablas-locales');
+            container.innerHTML = '';
+            ['FACIL', 'NORMAL', 'DIFICIL'].forEach(dif => {
+                const data = JSON.parse(localStorage.getItem('birdRecords_' + dif) || '[]');
+                let html = `<h3>${dif}</h3><table>`;
+                if(data.length === 0) html += `<tr><td>Sin récords aún</td></tr>`;
+                data.forEach((r, i) => {
+                    html += `<tr><td class="destacado">#${i+1}</td><td>${r.name}</td><td style="text-align:right">${r.score}</td></tr>`;
+                });
+                container.innerHTML += html + '</table>';
+            });
+        }
+
+        async function verRecordsGlobal(dif) {
+            mostrarSeccion('pantalla-global');
+            document.getElementById('titulo-global').innerText = "TOP 10 " + dif;
+            const tabla = document.getElementById('tabla-global');
+            tabla.innerHTML = "<tr><td colspan='3'>Cargando...</td></tr>";
+            
+            try {
+                const snapshot = await db.collection("top_global_" + dif.toLowerCase())
+                    .orderBy("score", "desc")
+                    .limit(10)
+                    .get();
+                
+                let html = "";
+                let i = 1;
+                snapshot.forEach(doc => {
+                    const r = doc.data();
+                    html += `<tr><td class="destacado">#${i}</td><td>${r.name}</td><td style="text-align:right">${r.score}</td></tr>`;
+                    i++;
+                });
+                tabla.innerHTML = html || "<tr><td colspan='3'>Sin datos globales</td></tr>";
+            } catch (e) {
+                tabla.innerHTML = "<tr><td colspan='3'>Error de conexión</td></tr>";
+            }
+        }
+
+        // --- MOTOR DE PARTÍCULAS RADIALES ---
+        function initParticles() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            particles = [];
+            for(let i=0; i < 80; i++) {
+                createParticle(true);
+            }
+        }
+
+        function createParticle(randomPos = false) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 2 + 1; // Un poco más lento para mejor visibilidad
+            const dist = randomPos ? Math.random() * (canvas.width / 2) : 0;
+
+            particles.push({
+                x: (canvas.width / 2) + Math.cos(angle) * dist,
+                y: (canvas.height / 2) + Math.sin(angle) * dist,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                size: Math.random() * 2.5 + 0.5,
+                color: "#00f2ff"
+            });
+        }
+
+        function animate() {
+            // FIX: Fondo del canvas es negro semi-transparente para dejar estela
+            ctx.fillStyle = "rgba(10, 10, 10, 0.2)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+
+            particles.forEach((p, index) => {
+                p.x += p.vx;
+                p.y += p.vy;
+
+                // Opacidad basada en distancia
+                const dist = Math.hypot(p.x - centerX, p.y - centerY);
+                const alpha = Math.min(1, dist / (canvas.width / 3));
+
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = alpha;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Recrear si salen del área visible
+                if (p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height) {
+                    particles[index] = createParticleReturn();
+                }
+            });
+            ctx.globalAlpha = 1;
+            requestAnimationFrame(animate);
+        }
+
+        function createParticleReturn() {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 2 + 1;
+            return {
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                size: Math.random() * 2.5 + 0.5,
+                color: "#00f2ff"
+            };
+        }
+
+        window.onload = () => {
+            actualizarDisplayMonedas();
+            initParticles();
+            animate();
+        };
+
+        window.onresize = () => {
+            initParticles();
+        };
+    </script>
+</body>
+</html>

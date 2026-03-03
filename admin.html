@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Focus Bird - Admin Console</title>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
+    <style>
+        :root { --acento: #00f2ff; --neon-pink: #ff00ff; --fondo: #050505; --oro: #ffd700; }
+        * { box-sizing: border-box; }
+        body, html { background: var(--fondo); color: white; font-family: 'Arial Black', sans-serif; margin: 0; padding: 0; width: 100%; overflow-x: hidden; }
+        .container { width: 100%; max-width: 600px; margin: 0 auto; padding: 15px; display: none; }
+        h1 { text-align: center; color: var(--acento); text-shadow: 0 0 15px var(--acento); font-size: 1.8rem; margin: 20px 0; }
+        .card { background: #111; padding: 20px; border-radius: 15px; border: 1px solid #222; margin-bottom: 20px; width: 100%; }
+        h2 { font-size: 0.9rem; color: var(--neon-pink); border-left: 4px solid var(--neon-pink); padding-left: 10px; margin-bottom: 15px; text-transform: uppercase; }
+        .v-stack { display: flex; flex-direction: column; gap: 12px; }
+        .h-stack { display: flex; gap: 8px; }
+        input, select { background: #000; border: 1px solid #333; color: white; padding: 12px; border-radius: 8px; font-weight: bold; width: 100%; }
+        input:focus { border-color: var(--acento); outline: none; }
+        .table-wrapper { width: 100%; overflow-x: auto; background: #000; border-radius: 8px; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.75rem; min-width: 450px; }
+        th { text-align: left; padding: 12px; color: var(--acento); border-bottom: 2px solid #222; }
+        td { padding: 10px; border-bottom: 1px solid #222; }
+        .color-palette { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; max-height: 300px; overflow-y: auto; padding: 10px; background: #000; border-radius: 10px; }
+        .color-item { background: #1a1a1a; padding: 8px; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer; border: 1px solid transparent; }
+        .swatch { width: 25px; height: 25px; border-radius: 5px; flex-shrink: 0; }
+        button { background: var(--acento); border: none; color: black; padding: 12px; font-weight: bold; border-radius: 8px; cursor: pointer; text-transform: uppercase; }
+        .update { background: #00ff00 !important; margin-bottom: 5px; width: 100%; }
+        .delete { background: #ff2d55 !important; color: white !important; width: 100%; }
+        .login-overlay { position: fixed; inset: 0; background: var(--fondo); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body>
+
+    <div id="login" class="login-overlay">
+        <h1>ADMIN AUTH</h1>
+        <div class="v-stack" style="width: 280px;">
+            <input type="password" id="pass" placeholder="PASSWORD">
+            <button onclick="checkPass()">ACCESS TERMINAL</button>
+        </div>
+    </div>
+
+    <div id="admin-panel" class="container">
+        <h1>SYSTEM OVERRIDE</h1>
+
+        <div class="card">
+            <h2>ECONOMY (ADD MONEDAS)</h2>
+            <div class="h-stack">
+                <input type="number" id="edit-coins" placeholder="CANTIDAD A SUMAR">
+                <button onclick="addCoins()">INYECTAR</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>PALETTE (TAP TO AUTO-FILL)</h2>
+            <div class="color-palette" id="palette-box"></div>
+        </div>
+
+        <div class="card">
+            <h2>SKIN INJECTOR</h2>
+            <div class="v-stack">
+                <select id="skin-cat">
+                    <option value="color">AVE (BODY)</option>
+                    <option value="estela">ESTELA (TRAIL)</option>
+                    <option value="ojos">OJOS (EYES)</option>
+                </select>
+                <div class="h-stack">
+                    <input type="text" id="skin-name" placeholder="NAME">
+                    <input type="number" id="skin-price" placeholder="PRICE">
+                </div>
+                <input type="text" id="skin-val" placeholder="HEX/RGBA CODE">
+                <button onclick="addSkin()" style="background:var(--neon-pink); color:white;">CONFIRM INJECTION</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>LEADERBOARD MANAGER</h2>
+            <div class="h-stack" style="margin-bottom: 15px;">
+                <button onclick="fetchScores('facil')" style="flex:1">FÁCIL</button>
+                <button onclick="fetchScores('normal')" style="flex:1">NORMAL</button>
+                <button onclick="fetchScores('dificil')" style="flex:1">DIFÍCIL</button>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead><tr><th>USER</th><th>SCORE</th><th>ACTIONS</th></tr></thead>
+                    <tbody id="scores-body"></tbody>
+                </table>
+            </div>
+        </div>
+        
+        <button onclick="window.location.href='flapybird.html'" style="width:100%; background:#222; color:#555; margin-bottom: 50px;">EXIT</button>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyB0ahP8K53dm8BIRhjXYxCbSJ8sNfQi-NI",
+            authDomain: "refugio-de-patitas.firebaseapp.com",
+            projectId: "refugio-de-patitas",
+            storageBucket: "refugio-de-patitas.firebasestorage.app",
+            messagingSenderId: "5921473252",
+            appId: "1:5921473252:web:16f18c4c7cf1ad1509e2f1"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const neonColors = [
+            {n:'Cyan', c:'#00f2ff'}, {n:'Pink', c:'#ff00ff'}, {n:'Lime', c:'#39ff14'},
+            {n:'Purple', c:'#bc13fe'}, {n:'Yellow', c:'#fff000'}, {n:'Red', c:'#ff0000'},
+            {n:'Orange', c:'#ff4d00'}, {n:'White', c:'#ffffff'}, {n:'Gold', c:'#ffd700'},
+            {n:'Ruby', c:'#ff0055'}, {n:'T-Cyan', c:'rgba(0, 242, 255, 0.4)'}, {n:'T-Fire', c:'rgba(255, 77, 0, 0.5)'}
+        ];
+
+        function checkPass() {
+            if(document.getElementById('pass').value === '1234') {
+                document.getElementById('login').style.display = 'none';
+                document.getElementById('admin-panel').style.display = 'block';
+                renderPalette();
+            } else { alert("DENIED"); }
+        }
+
+        function renderPalette() {
+            const box = document.getElementById('palette-box');
+            neonColors.forEach(col => {
+                box.innerHTML += `
+                    <div class="color-item" onclick="fillColor('${col.c}')">
+                        <div class="swatch" style="background:${col.c}"></div>
+                        <div style="font-size:0.6rem"><b>${col.n}</b><br>${col.c}</div>
+                    </div>`;
+            });
+        }
+
+        function fillColor(code) {
+            document.getElementById('skin-val').value = code;
+        }
+
+        function addCoins() {
+            let actual = parseInt(localStorage.getItem('birdCoins')) || 0;
+            let suma = parseInt(document.getElementById('edit-coins').value) || 0;
+            localStorage.setItem('birdCoins', actual + suma);
+            alert("Inyectadas " + suma + " monedas. Total: " + (actual + suma));
+        }
+
+        function addSkin() {
+            const cat = document.getElementById('skin-cat').value;
+            const name = document.getElementById('skin-name').value.toUpperCase();
+            const val = document.getElementById('skin-val').value;
+            const price = parseInt(document.getElementById('skin-price').value) || 0;
+            if(!name || !val) return alert("Faltan datos");
+
+            let customDB = JSON.parse(localStorage.getItem('birdCustomDB')) || { color: [], estela: [], ojos: [] };
+            customDB[cat].push({ id: 'adm_'+Date.now(), name, val, price });
+            localStorage.setItem('birdCustomDB', JSON.stringify(customDB));
+            alert("Skin Inyectada Correctamente");
+        }
+
+        async function fetchScores(dif) {
+            const body = document.getElementById('scores-body');
+            body.innerHTML = "<tr><td colspan='3'>SINCRO...</td></tr>";
+            const colName = "top_global_" + dif;
+            const snap = await db.collection(colName).orderBy("score", "desc").get();
+            body.innerHTML = "";
+            let count = 0;
+            snap.forEach(async (doc) => {
+                count++;
+                if(count > 10) { await db.collection(colName).doc(doc.id).delete(); }
+                else {
+                    const d = doc.data();
+                    body.innerHTML += `
+                        <tr>
+                            <td><input style="width:80px; padding:4px" id="n-${doc.id}" value="${d.name}"></td>
+                            <td><input style="width:60px; padding:4px" type="number" id="s-${doc.id}" value="${d.score}"></td>
+                            <td>
+                                <button class="update" onclick="updateScore('${colName}','${doc.id}')">SAVE</button>
+                                <button class="delete" onclick="deleteScore('${colName}','${doc.id}')">DEL</button>
+                            </td>
+                        </tr>`;
+                }
+            });
+        }
+
+        async function updateScore(col, id) {
+            const name = document.getElementById('n-'+id).value;
+            const score = parseInt(document.getElementById('s-'+id).value);
+            await db.collection(col).doc(id).update({ name, score });
+            alert("Actualizado");
+        }
+
+        async function deleteScore(col, id) {
+            if(confirm("Borrar registro?")) {
+                await db.collection(col).doc(id).delete();
+                alert("Borrado");
+                fetchScores(col.replace('top_global_',''));
+            }
+        }
+    </script>
+</body>
+</html>

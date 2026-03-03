@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Focus Bird - Skins Lab</title>
+    <style>
+        :root { 
+            --acento: #00f2ff; 
+            --fondo: #050505; 
+            --oro: #ffd700;
+            --tarjeta: #111;
+            /* Variables de previsualización */
+            --p-color: #00f2ff;
+            --p-eye: #000;
+            --p-trail: rgba(150, 150, 150, 0.5);
+        }
+        body, html { background: var(--fondo); color: white; margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Arial Black', sans-serif; overflow-x: hidden; }
+        
+        .header { 
+            padding: 15px; text-align: center; background: rgba(0,0,0,0.9);
+            border-bottom: 2px solid var(--acento); position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(10px); display: flex; justify-content: space-between; align-items: center;
+        }
+        .monedas-top { color: var(--oro); font-size: 1.1rem; text-shadow: 0 0 10px var(--oro); }
+
+        /* PREVISUALIZACIÓN CENTRAL */
+        .preview-area {
+            height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: radial-gradient(circle, #151515 0%, #050505 100%); position: relative;
+            border-bottom: 1px solid #222; overflow: hidden;
+        }
+
+        /* DIBUJO DEL AVE MEJORADO */
+        .bird-preview { width: 65px; height: 50px; position: relative; z-index: 10; }
+        .cuerpo-p { 
+            width: 100%; height: 100%; 
+            border-radius: 50% 50% 40% 40% / 60% 60% 40% 40%; 
+            border: 2.5px solid var(--p-color); 
+            box-shadow: 0 0 15px var(--p-color); 
+            background: linear-gradient(135deg, #111, #000); 
+            position: relative; z-index: 5;
+        }
+        .pico-p { position: absolute; right: -15px; top: 18px; z-index: 4; }
+        .pico-sup { width: 20px; height: 12px; background: #fff; border-radius: 0 100% 0 0; border: 1.5px solid var(--p-color); border-left: none; }
+        .pico-inf { width: 15px; height: 8px; background: var(--p-color); border-radius: 0 0 100% 0; margin-top: -1px; margin-left: 2px; }
+        
+        .ojo-p { width: 18px; height: 18px; background: white; border-radius: 50%; position: absolute; top: 8px; right: 12px; display: flex; align-items: center; justify-content: center; z-index: 6; border: 1px solid var(--p-color); }
+        .pupila-p { width: 8px; height: 8px; background: var(--p-eye); border-radius: 50%; }
+        .ala-p { width: 38px; height: 22px; border: 2px solid var(--p-color); border-radius: 0% 100% 0% 100%; position: absolute; top: 5px; left: -12px; background: #111; animation: aleteo 0.15s infinite alternate; z-index: 4; transform-origin: right center; }
+
+        /* ESTELA DINÁMICA */
+        .trail-container { position: absolute; right: 55%; width: 150px; height: 50px; display: flex; align-items: center; justify-content: flex-end; }
+        .trail-particle { 
+            position: absolute; background: var(--p-trail); border-radius: 50%; 
+            filter: blur(2px); animation: trailMove 0.6s infinite linear; 
+        }
+        @keyframes trailMove {
+            0% { transform: translateX(0) scale(1); opacity: 0.7; }
+            100% { transform: translateX(-100px) scale(0); opacity: 0; }
+        }
+
+        @keyframes aleteo { from { transform: rotate(15deg); } to { transform: rotate(-25deg); } }
+
+        /* PESTAÑAS */
+        .tabs { display: flex; justify-content: space-around; background: #000; padding: 12px 0; border-bottom: 1px solid #333; }
+        .tab { font-size: 0.65rem; color: #555; cursor: pointer; letter-spacing: 1.5px; transition: 0.3s; padding: 8px 15px; border-radius: 5px; text-transform: uppercase; }
+        .tab.active { color: var(--acento); text-shadow: 0 0 10px var(--acento); background: rgba(0, 242, 255, 0.1); border: 1px solid var(--acento); }
+
+        /* GRID */
+        .container { padding: 15px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding-bottom: 90px; }
+        .skin-card { 
+            background: var(--tarjeta); border: 2px solid #222; border-radius: 18px; 
+            padding: 15px; text-align: center; transition: 0.3s; position: relative; cursor: pointer;
+        }
+        .skin-card:active { transform: scale(0.95); }
+        .skin-card.equipped { border-color: var(--acento); box-shadow: 0 0 12px var(--acento); }
+        .skin-card.previewing { border-color: #fff; border-style: dashed; }
+
+        .preview-box { width: 50px; height: 50px; margin: 0 auto 10px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; background: #000; }
+        .eye-dot { width: 18px; height: 18px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .pupil-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+        .item-name { font-size: 0.65rem; margin-bottom: 12px; display: block; color: #eee; letter-spacing: 1px; }
+        .btn-skin { width: 100%; padding: 10px; border-radius: 10px; border: none; font-weight: bold; font-size: 0.65rem; cursor: pointer; text-transform: uppercase; }
+        .btn-equip { background: var(--acento); color: black; }
+        .btn-buy { background: var(--oro); color: black; }
+        .btn-current { background: #222; color: #555; cursor: default; }
+
+        .nav-inferior { position: fixed; bottom: 0; width: 100%; height: 65px; background: rgba(0,0,0,0.95); display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #333; z-index: 100; backdrop-filter: blur(10px); }
+        .nav-btn { color: #555; text-decoration: none; font-size: 0.75rem; }
+        .nav-btn.active { color: var(--acento); }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <a href="flapybird.html" style="text-decoration:none; color:var(--acento); font-size:0.7rem; font-weight:bold;">← SALIR</a>
+        <div class="monedas-top">🪙 <span id="val-monedas">0</span></div>
+    </div>
+
+    <div class="preview-area">
+        <div class="trail-container" id="trail-preview-box">
+            </div>
+        <div class="bird-preview">
+            <div class="pico-p">
+                <div class="pico-sup" id="p-pico-sup"></div>
+                <div class="pico-inf" id="p-pico-inf"></div>
+            </div>
+            <div class="ala-p" id="p-ala"></div>
+            <div class="cuerpo-p" id="p-cuerpo">
+                <div class="ojo-p"><div class="pupila-p" id="p-pupila"></div></div>
+            </div>
+        </div>
+        <div style="margin-top:25px; font-size:0.55rem; color:var(--acento); letter-spacing:3px; opacity:0.6;">MODO PREVISUALIZACIÓN</div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" onclick="cambiarPestaña('color', this)">AVE</div>
+        <div class="tab" onclick="cambiarPestaña('estela', this)">ESTELA</div>
+        <div class="tab" onclick="cambiarPestaña('ojos', this)">OJOS</div>
+        <div class="tab" onclick="cambiarPestaña('especial', this)">MODS</div>
+    </div>
+
+    <div class="container" id="grid-skins"></div>
+
+    <div class="nav-inferior">
+        <a href="flapybird.html" class="nav-btn">INICIO</a>
+        <a href="tienda.html" class="nav-btn">TIENDA</a>
+        <a href="skins.html" class="nav-btn active">SKINS</a>
+    </div>
+
+    <script>
+    // 1. Definimos la base de datos fija
+    const dbDefault = {
+        color: [
+            { id: 'c1', name: 'CYAN NEÓN', val: '#00f2ff', price: 0 },
+            { id: 'c2', name: 'ROSA ELÉCTRICO', val: '#ff00ff', price: 200 },
+            { id: 'c3', name: 'VERDE ÁCIDO', val: '#00ff00', price: 200 },
+            { id: 'c4', name: 'SOLAR FLARE', val: '#ffaa00', price: 300 },
+            { id: 'c5', name: 'ULTRA VIOLET', val: '#bc13fe', price: 400 },
+            { id: 'c6', name: 'RUBY RED', val: '#ff0055', price: 400 },
+            { id: 'c7', name: 'PURE WHITE', val: '#ffffff', price: 600 }
+        ],
+        estela: [
+            { id: 'e1', name: 'METEORO', val: 'rgba(150, 150, 150, 0.5)', price: 0 },
+            { id: 'e2', name: 'PLASMA', val: 'rgba(0, 242, 255, 0.6)', price: 300 },
+            { id: 'e3', name: 'TOXIC', val: 'rgba(0, 255, 0, 0.6)', price: 300 },
+            { id: 'e4', name: 'INFERNO', val: 'rgba(255, 68, 0, 0.6)', price: 500 },
+            { id: 'e5', name: 'VOID', val: 'rgba(188, 19, 254, 0.6)', price: 600 }
+        ],
+        ojos: [
+            { id: 'o1', name: 'VACÍO', val: '#000000', price: 0 },
+            { id: 'o2', name: 'SANGRE', val: '#ff0000', price: 150 },
+            { id: 'o3', name: 'ESMERALDA', val: '#00ffaa', price: 150 },
+            { id: 'o4', name: 'ELÉCTRICO', val: '#00f2ff', price: 250 },
+            { id: 'o5', name: 'AMBAR', val: '#ffaa00', price: 250 }
+        ],
+        especial: [
+            { id: 's1', name: 'PROXIMAMENTE', val: '?', price: 9999 }
+        ]
+    };
+
+    // 2. Leemos lo que inyectó el Admin
+    const adminSkins = JSON.parse(localStorage.getItem('birdCustomDB')) || { color: [], estela: [], ojos: [] };
+
+    // 3. Fusionamos en la variable global que usa el juego
+    const dbSkins = {
+        color: [...dbDefault.color, ...adminSkins.color],
+        estela: [...dbDefault.estela, ...adminSkins.estela],
+        ojos: [...dbDefault.ojos, ...adminSkins.ojos],
+        especial: dbDefault.especial
+    };
+
+    let monedas = parseInt(localStorage.getItem('birdCoins')) || 0;
+    let comprados = JSON.parse(localStorage.getItem('birdBought')) || ['c1', 'e1', 'o1'];
+    let pestañaActual = 'color';
+    
+    // ... (Sigue el resto de tus funciones: initTrail, updatePreview, render, etc. igual que las tenías)
+        function initTrail() {
+            const container = document.getElementById('trail-preview-box');
+            container.innerHTML = '';
+            for(let i=0; i<8; i++) {
+                const p = document.createElement('div');
+                p.className = 'trail-particle';
+                p.style.width = (10 + Math.random()*15) + 'px';
+                p.style.height = p.style.width;
+                p.style.top = (10 + Math.random()*20) + 'px';
+                p.style.animationDelay = (i * 0.1) + 's';
+                container.appendChild(p);
+            }
+        }
+
+        function updatePreview() {
+            document.documentElement.style.setProperty('--p-color', tempColor);
+            document.documentElement.style.setProperty('--p-eye', tempEyes);
+            document.documentElement.style.setProperty('--p-trail', tempTrail);
+            
+            // Forzar actualización visual del pico y ala
+            document.getElementById('p-pico-inf').style.background = tempColor;
+            document.getElementById('p-pico-sup').style.borderColor = tempColor;
+        }
+
+        function render() {
+            document.getElementById('val-monedas').innerText = monedas;
+            const grid = document.getElementById('grid-skins');
+            grid.innerHTML = '';
+
+            const items = dbSkins[pestañaActual];
+            const eqColor = localStorage.getItem('birdSkin') || '#00f2ff';
+            const eqTrail = localStorage.getItem('birdTrail') || 'rgba(150, 150, 150, 0.5)';
+            const eqEyes = localStorage.getItem('birdEyes') || '#000000';
+
+            items.forEach(item => {
+                const esComprado = comprados.includes(item.id);
+                let esEquipado = false;
+                if(pestañaActual === 'color') esEquipado = eqColor === item.val;
+                if(pestañaActual === 'estela') esEquipado = eqTrail === item.val;
+                if(pestañaActual === 'ojos') esEquipado = eqEyes === item.val;
+
+                const card = document.createElement('div');
+                card.className = `skin-card ${esEquipado ? 'equipped' : ''}`;
+                
+                // Al hacer clic en la tarjeta, previsualizar (aunque no esté comprado)
+                card.onclick = () => {
+                    document.querySelectorAll('.skin-card').forEach(c => c.classList.remove('previewing'));
+                    card.classList.add('previewing');
+                    if(pestañaActual === 'color') tempColor = item.val;
+                    if(pestañaActual === 'estela') tempTrail = item.val;
+                    if(pestañaActual === 'ojos') tempEyes = item.val;
+                    updatePreview();
+                };
+
+                let boxContent = `<div style="width:100%;height:100%;background:${item.val}"></div>`;
+                if(pestañaActual === 'ojos') boxContent = `<div class="eye-dot"><div class="pupil-dot" style="background:${item.val}"></div></div>`;
+                if(pestañaActual === 'estela') boxContent = `<div style="width:100%;height:100%;background:linear-gradient(to right, ${item.val}, transparent)"></div>`;
+
+                card.innerHTML += `
+                    <div class="preview-box">${boxContent}</div>
+                    <span class="item-name">${item.name}</span>
+                    ${esComprado 
+                        ? (esEquipado ? `<button class="btn-skin btn-current">EQUIPADO</button>` : `<button class="btn-skin btn-equip" onclick="equipar('${pestañaActual}', '${item.val}', event)">EQUIPAR</button>`)
+                        : `<button class="btn-skin btn-buy" onclick="comprar('${item.id}', ${item.price}, event)">🪙 ${item.price}</button>`
+                    }
+                `;
+                grid.appendChild(card);
+            });
+            updatePreview();
+        }
+
+        function cambiarPestaña(tipo, el) {
+            pestañaActual = tipo;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            render();
+        }
+
+        function comprar(id, precio, e) {
+            e.stopPropagation(); // Evitar que el clic en el botón active la previsualización de nuevo
+            if (monedas >= precio) {
+                monedas -= precio;
+                comprados.push(id);
+                localStorage.setItem('birdCoins', monedas);
+                localStorage.setItem('birdBought', JSON.stringify(comprados));
+                render();
+            } else {
+                alert('MONEDAS INSUFICIENTES');
+            }
+        }
+
+        function equipar(tipo, val, e) {
+            e.stopPropagation();
+            if(tipo === 'color') localStorage.setItem('birdSkin', val);
+            if(tipo === 'estela') localStorage.setItem('birdTrail', val);
+            if(tipo === 'ojos') localStorage.setItem('birdEyes', val);
+            render();
+        }
+
+        window.onload = () => {
+            initTrail();
+            render();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Focus Bird - En Juego</title>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
+    <style>
+        :root { 
+            --acento: #00f2ff; 
+            --fondo: #000; 
+            --skin-color: #00f2ff; 
+            --eye-color: #000;
+        }
+        body, html { background: var(--fondo); color: white; margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Arial Black', sans-serif; touch-action: none; }
+        
+        #contenedor-juego { position: relative; width: 100vw; height: 100vh; overflow: hidden; cursor: pointer; }
+        canvas#gameCanvas { display: block; width: 100%; height: 100%; }
+
+        #score-overlay { position: absolute; top: 10%; width: 100%; text-align: center; z-index: 20; pointer-events: none; }
+        #puntos-num { font-size: 5rem; font-weight: 900; color: white; text-shadow: 0 0 25px var(--acento); }
+
+        #tap-msg { position: absolute; top: 65%; width: 100%; text-align: center; z-index: 30; font-size: 1.2rem; color: var(--acento); text-shadow: 0 0 10px var(--acento); animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        #bird-css { width: 60px; height: 45px; position: absolute; z-index: 10; pointer-events: none; left: 25%; top: 50%; transform: translateY(-50%); }
+        .cuerpo { width: 100%; height: 100%; background: linear-gradient(135deg, #111, #000); border-radius: 50% 50% 40% 40% / 60% 60% 40% 40%; border: 2.5px solid var(--skin-color); position: absolute; box-sizing: border-box; z-index: 5; filter: drop-shadow(0 0 8px var(--skin-color)); }
+        .ala { width: 38px; height: 22px; background: #111; border: 2px solid var(--skin-color); border-radius: 0% 100% 0% 100%; position: absolute; top: 5px; left: -12px; z-index: 4; transform-origin: right center; animation: aleteo 0.12s infinite alternate; }
+        .ojo { width: 18px; height: 18px; background-color: #fff; border-radius: 50%; position: absolute; top: 8px; right: 12px; z-index: 7; display: flex; justify-content: center; align-items: center; border: 1.5px solid var(--skin-color); }
+        .pupila { width: 7px; height: 7px; background-color: var(--eye-color); border-radius: 50%; }
+        
+        @keyframes aleteo { from { transform: rotate(15deg); } to { transform: rotate(-30deg); } }
+        .shake { animation: shake 0.4s both; }
+        @keyframes shake { 0% { transform: translate(0,0); } 25% { transform: translate(-6px, 6px); } 50% { transform: translate(6px, -6px); } 100% { transform: translate(0,0); } }
+
+        .pantalla-post { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; text-align: center; }
+        .btn-game { background: transparent; border: 2px solid var(--acento); color: white; padding: 15px 30px; font-size: 1.2rem; border-radius: 12px; cursor: pointer; margin-top: 20px; text-transform: uppercase; font-weight: bold; min-width: 200px; }
+    </style>
+</head>
+<body>
+
+    <div id="contenedor-juego">
+        <div id="score-overlay"><span id="puntos-num">0</span></div>
+        <div id="tap-msg">TOCA PARA EMPEZAR</div>
+        <div id="bird-css">
+            <div class="pico-bird" style="position: absolute; right: -15px; z-index: 4;">
+                <div style="width: 22px; height: 14px; background-color: #fff; border-radius: 0 100% 0 0; position: absolute; top: 16px; right: 0; border: 1.5px solid var(--skin-color); border-left: none;"></div>
+                <div style="width: 16px; height: 10px; background-color: var(--skin-color); border-radius: 0 0 100% 0; position: absolute; top: 28px; right: 4px;"></div>
+            </div>
+            <div class="ala"></div>
+            <div class="cuerpo">
+                <div class="ojo"><div class="pupila"></div></div>
+            </div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div id="modal-game" class="pantalla-post">
+        <h2 id="msg-final" style="color: #ff2d55; font-size: 2.5rem; margin: 0;">FIN DEL JUEGO</h2>
+        <p id="score-final" style="font-size: 1.5rem; margin: 10px 0;">SCORE: 0</p>
+        
+        <div id="input-container" style="display:none; flex-direction:column; align-items:center;">
+             <p style="color:#ffd700; font-size: 1rem; text-shadow: 0 0 10px #ffd700;">¡NUEVO RÉCORD! MONEDAS X2</p>
+             <input type="text" id="nombre-jugador" maxlength="10" placeholder="TU NOMBRE" style="background:#111; color:white; border:1px solid var(--acento); padding:15px; text-align:center; font-size: 1.2rem; border-radius: 8px; margin-bottom: 10px;">
+             <button id="btn-save" class="btn-game" onclick="guardarTodo()">GUARDAR PUNTUACIÓN</button>
+        </div>
+
+        <div id="botones-navegacion" style="display: flex; flex-direction: column; align-items: center;">
+            <button class="btn-game" onclick="location.reload()">REINTENTAR</button>
+            <button class="btn-game" style="border-color:#666;" onclick="window.location.href='flapybird.html'">MENÚ</button>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyB0ahP8K53dm8BIRhjXYxCbSJ8sNfQi-NI",
+            authDomain: "refugio-de-patitas.firebaseapp.com",
+            projectId: "refugio-de-patitas",
+            storageBucket: "refugio-de-patitas.firebasestorage.app",
+            messagingSenderId: "5921473252",
+            appId: "1:5921473252:web:16f18c4c7cf1ad1509e2f1"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const birdHTML = document.getElementById("bird-css");
+        const contenedor = document.getElementById("contenedor-juego");
+
+        let birdX, birdY, velocity = 0, score = 0, gameActive = false, waitingFirstTap = true;
+        let pipes = [], particles = [], trail = [];
+        let lastTime = 0, coinsInMatch = 0, ultimaY = window.innerHeight / 2;
+        
+        const params = new URLSearchParams(window.location.search);
+        const difName = params.get('dif') || 'NORMAL';
+        let speed = parseFloat(params.get('speed')) || 4.5;
+        const gravity = 0.35, jump = -8.5;
+
+        // Potenciadores
+        let hasWarp = localStorage.getItem('powerup_warp') === '1';
+        let hasDouble = localStorage.getItem('powerup_double') === '1';
+        let invulnerablePipes = localStorage.getItem('powerup_shield') === '1' ? 10 : 0;
+
+        const coloresObstaculos = ['#00f2ff', '#ff00ff', '#00ff00', '#ffff00', '#bf00ff', '#ff4d00'];
+        let colorIdx = 0;
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let musicStarted = false;
+        let currentStep = 0;
+
+        function playGameMusic() {
+            if (!gameActive) return;
+            const bases = [65.41, 73.42, 82.41, 87.31, 98.00, 110.00];
+            const base = bases[colorIdx] || 65.41;
+            const melody = [1, 1.25, 1.5, 1.33, 1.5, 1.87, 2, 1.5];
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(base * melody[currentStep % 8], audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+            currentStep++;
+            setTimeout(playGameMusic, Math.max(120, 200 - (score * 0.5)));
+        }
+
+        window.onload = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            const s = localStorage.getItem('birdSkin') || '#00f2ff';
+            const e = localStorage.getItem('birdEyes') || '#000000';
+            document.documentElement.style.setProperty('--skin-color', s);
+            document.documentElement.style.setProperty('--eye-color', e);
+            birdX = canvas.width * 0.25;
+            birdY = canvas.height / 2;
+            gameActive = true;
+            requestAnimationFrame(runGame);
+        };
+
+        function runGame(timestamp) {
+            if(!gameActive) return;
+            const dt = (timestamp - lastTime) / 16.66 || 1;
+            lastTime = timestamp;
+
+            ctx.fillStyle = "#000";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const tema = getComputedStyle(document.documentElement).getPropertyValue('--acento').trim();
+
+            if (waitingFirstTap) {
+                velocity = 0; // Fix Difícil: Gravedad cero mientras espera
+                birdY = (canvas.height / 2) + Math.sin(timestamp / 300) * 15;
+                birdHTML.style.top = birdY + "px";
+                birdHTML.style.transform = `rotate(0deg)`;
+            } else {
+                velocity += gravity * dt; birdY += velocity * dt;
+                birdHTML.style.top = birdY + "px";
+                birdHTML.style.transform = `rotate(${Math.min(0.8, Math.max(-0.8, velocity * 0.12)) * 45}deg)`;
+
+                // Efecto de parpadeo invulnerable
+                if(invulnerablePipes > 0) {
+                    birdHTML.style.opacity = Math.sin(timestamp / 50) > 0 ? "1" : "0.3";
+                } else {
+                    birdHTML.style.opacity = "1";
+                }
+
+                pipes.forEach(p => {
+                    p.x -= speed * dt;
+                    ctx.fillStyle = "#111"; ctx.strokeStyle = tema; ctx.lineWidth = 4;
+                    ctx.fillRect(p.x, 0, 90, p.y); ctx.strokeRect(p.x, 0, 90, p.y);
+                    ctx.fillRect(p.x, p.y + 200, 90, canvas.height); ctx.strokeRect(p.x, p.y + 200, 90, canvas.height);
+                    
+                    // Colisión (Anulada si es invulnerable)
+                    if(birdX+45 > p.x && birdX+5 < p.x+90 && (birdY < p.y || birdY+35 > p.y+200)) {
+                        if(invulnerablePipes <= 0) endGame();
+                    }
+                    
+                    if(!p.passed && p.x + 90 < birdX) {
+                        p.passed = true; score++; 
+                        coinsInMatch += hasDouble ? 2 : 1;
+                        if(invulnerablePipes > 0) invulnerablePipes--;
+                        
+                        document.getElementById('puntos-num').innerText = score;
+                        if(score % 10 === 0) {
+                            colorIdx = (colorIdx + 1) % coloresObstaculos.length;
+                            document.documentElement.style.setProperty('--acento', coloresObstaculos[colorIdx]);
+                            speed += 0.3;
+                            contenedor.classList.add('shake'); setTimeout(()=>contenedor.classList.remove('shake'), 400);
+                        }
+                    }
+                });
+
+                // Generación con Espacio de Gracia para Difícil
+                let spawnDist = (pipes.length === 0) ? canvas.width + 600 : canvas.width - 350;
+                if(pipes.length === 0 || pipes[pipes.length-1].x < spawnDist) {
+                    let rangoMax = 160;
+                    let nuevaY = ultimaY + (Math.random() * (rangoMax * 2) - rangoMax);
+                    nuevaY = Math.max(120, Math.min(canvas.height - 320, nuevaY));
+                    ultimaY = nuevaY;
+                    pipes.push({ x: canvas.width, y: nuevaY, passed: false });
+                }
+            }
+
+            // Estela
+            const trailColor = localStorage.getItem('birdTrail') || 'rgba(150, 150, 150, 0.4)';
+            if (!waitingFirstTap) {
+                trail.push({ x: birdX + 15, y: birdY + 22, size: 14 });
+                if(trail.length > 20) trail.shift();
+            }
+            trail.forEach((t, i) => {
+                t.x -= speed * dt; t.size *= 0.96;
+                ctx.fillStyle = trailColor.replace(/[\d.]+\)$/g, `${i/40})`);
+                ctx.beginPath(); ctx.arc(t.x, t.y, t.size, 0, Math.PI * 2); ctx.fill();
+            });
+
+            // Partículas
+            if(particles.length < 60) particles.push({ x: canvas.width + 10, y: Math.random()*canvas.height, w: Math.random()*25 + 5, s: Math.random()*4 + 2 });
+            ctx.fillStyle = tema; ctx.globalAlpha = 0.2;
+            particles.forEach((p, idx) => {
+                p.x -= (p.s + (waitingFirstTap ? 0 : speed*0.5)) * dt;
+                ctx.fillRect(p.x, p.y, p.w, 2);
+                if(p.x < -p.w) particles[idx] = { x: canvas.width + 10, y: Math.random()*canvas.height, w: Math.random()*25 + 5, s: Math.random()*4 + 2 };
+            });
+            ctx.globalAlpha = 1;
+
+            if (birdY > canvas.height || birdY < 0) endGame();
+            requestAnimationFrame(runGame);
+        }
+
+        async function endGame() {
+            gameActive = false;
+            // Limpiar potenciadores de un solo uso
+            localStorage.setItem('powerup_warp', '0');
+            localStorage.setItem('powerup_double', '0');
+            localStorage.setItem('powerup_shield', '0');
+
+            const records = JSON.parse(localStorage.getItem('birdRecords_' + difName) || '[]');
+            const esTop10 = records.length < 10 || score > (records[9]?.score || 0);
+            
+            document.getElementById('modal-game').style.display = 'flex';
+            document.getElementById('score-final').innerText = "SCORE: " + score;
+            document.getElementById('botones-navegacion').style.display = 'flex';
+            
+            if(esTop10) {
+                document.getElementById('input-container').style.display = 'flex';
+            } else {
+                document.getElementById('input-container').style.display = 'none';
+                saveCoins(coinsInMatch);
+            }
+        }
+
+        function saveCoins(amount) {
+            let total = parseInt(localStorage.getItem('birdCoins') || 0) + amount;
+            localStorage.setItem('birdCoins', total);
+            const uid = localStorage.getItem('focusBird_userId');
+            if(uid) db.collection("user_economy").doc(uid).set({ coins: total }, { merge: true });
+        }
+
+        async function guardarTodo() {
+            const btn = document.getElementById('btn-save');
+            btn.disabled = true; btn.innerText = "GUARDANDO...";
+            const nombre = document.getElementById('nombre-jugador').value.toUpperCase() || 'ANÓN';
+            saveCoins(coinsInMatch * 2);
+            let key = 'birdRecords_' + difName;
+            let data = JSON.parse(localStorage.getItem(key) || '[]');
+            data.push({ name: nombre, score: score });
+            data.sort((a,b) => b.score - a.score);
+            localStorage.setItem(key, JSON.stringify(data.slice(0, 10)));
+            try {
+                await db.collection("top_global_" + difName.toLowerCase()).add({ name: nombre, score: score, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+                btn.innerText = "¡GUARDADO!";
+                setTimeout(() => document.getElementById('input-container').style.display = 'none', 1000);
+            } catch(e) { btn.disabled = false; btn.innerText = "ERROR - REINTENTAR"; }
+        }
+
+        const tap = (e) => { 
+            e.preventDefault(); 
+            if(!gameActive) return;
+            if (waitingFirstTap) {
+                waitingFirstTap = false;
+                document.getElementById('tap-msg').style.display = 'none';
+                
+                // Aplicar WARP DRIVE
+                if(hasWarp) {
+                    score = 20; coinsInMatch += (hasDouble ? 40 : 20);
+                    document.getElementById('puntos-num').innerText = score;
+                }
+
+                if(!musicStarted) {
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+                    musicStarted = true; playGameMusic();
+                }
+            }
+            velocity = jump;
+        };
+        contenedor.addEventListener("touchstart", tap);
+        contenedor.addEventListener("mousedown", tap);
+    </script>
+</body>
+</html>
